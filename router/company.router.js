@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const token_verification = require("../middleware/token_verification");
 const User = require("../schema/User.model");
+const company_deserializer = require("../utils/company_deserializer");
 
 const { Web3 } = require("web3");
 const { abi, networks } = require("../SupplyChainNetwork.json");
@@ -37,9 +38,7 @@ router.post("/", token_verification, async (req, res) => {
     await contract.methods
       .addCompany(req.body.owner, req.body.company_name)
       .send({ from: req.wallet_address, gas: "6721975" });
-    const company = await contract.methods
-      .getCompany()
-      .call({ from: req.body.owner });
+    const company = await contract.methods.getCompany(req.body.owner).call();
     return res.status(200).json({
       message: "company created",
       data: [company],
@@ -52,6 +51,26 @@ router.post("/", token_verification, async (req, res) => {
 });
 
 router.get("/", async (req, res) => {
+  if (req.query.company_address) {
+    const company_address = req.query.company_address;
+    try {
+      const company = await contract.methods.getCompany(company_address).call();
+      if (!company.exist)
+        return res.status(404).json({
+          message: "company does not exist",
+        });
+      const deserialized_company = company_deserializer(company);
+      return res.status(200).json({
+        message: "company obtained",
+        data: [deserialized_company],
+      });
+    } catch (err) {
+      console.log("aight");
+      return res.status(400).json({
+        message: err.message,
+      });
+    }
+  }
   try {
     let head_companies = [];
     const head_companies_length = await contract.methods
@@ -71,18 +90,4 @@ router.get("/", async (req, res) => {
   }
 });
 
-// router.get("/:company_address", async(req,res) => {
-//   try {
-
-//   }
-// });
-
 module.exports = router;
-// app.get("/", async (req, res) => {
-//   const accounts = await web3.eth.getAccounts();
-//   const contract = new web3.eth.Contract(abi, networks[5777].address);
-//   console.log(
-//     await contract.methods.getCompany(accounts[0]).call({ from: accounts[0] })
-//   );
-//   res.send(`Welcome to Express & TypeScript Server, ${accounts[0]}`);
-// });
