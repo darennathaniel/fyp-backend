@@ -30,6 +30,10 @@ router.post("/login", async (req, res) => {
     const user = await User.findOne({
       username,
     });
+    if (user.password === "zonk")
+      return res.status(404).json({
+        message: "account hasn't been created",
+      });
     const validation = await bcrypt.compare(password, user.password);
     if (!validation)
       return res.status(401).json({
@@ -39,6 +43,7 @@ router.post("/login", async (req, res) => {
       {
         username: user.username,
         wallet_address: user.wallet_address,
+        owner: user.is_owner,
       },
       dotenv.parsed.JWT_SECRET
     );
@@ -82,15 +87,24 @@ router.post("/register", async (req, res) => {
   const salt = await bcrypt.genSalt(10);
   const hashed_password = await bcrypt.hash(password, salt);
   try {
-    await User.create({
+    const user = await User.findOne({
       username,
-      password: hashed_password,
-      wallet_address,
     });
+    if (user.password !== "zonk")
+      return res.status(400).json({
+        message: "user has been created",
+      });
+    if (user.wallet_address !== wallet_address)
+      return res.status(400).json({
+        message: "wallet address does not match",
+      });
+    user.password = hashed_password;
+    user.save();
     const token = jwt.sign(
       {
         username,
         wallet_address,
+        owner: false,
       },
       dotenv.parsed.JWT_SECRET
     );

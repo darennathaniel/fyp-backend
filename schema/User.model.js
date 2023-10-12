@@ -18,13 +18,16 @@ const user_schema = new Schema({
   },
   password: {
     type: String,
-    minlength: 6,
     required: true,
   },
   wallet_address: {
     type: String,
     required: true,
     unique: true,
+  },
+  is_owner: {
+    type: Boolean,
+    required: true,
   },
 });
 

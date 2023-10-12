@@ -21,12 +21,13 @@ module.exports = (req, res, next) => {
       return res.status(401).json({
         message: "jwt token is not verified",
       });
-    const { username, wallet_address } = jwt.decode(
+    const { username, wallet_address, owner } = jwt.decode(
       token,
       dotenv.parsed.JWT_SECRET
     );
     req.username = username;
     req.wallet_address = wallet_address;
+    req.owner = owner;
   } catch (err) {
     return res.status(400).json({
       message: err.message,
