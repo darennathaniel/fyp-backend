@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
 const User = require("../schema/User.model");
-const Joi = require("@hapi/joi");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv").config();
@@ -73,17 +72,6 @@ router.post("/register", async (req, res) => {
       message: "wallet address does not exist in the body",
     });
   const { username, password, wallet_address } = req.body;
-  const schema = Joi.object({
-    username: Joi.string().min(6).required(),
-    password: Joi.string().min(6).required(),
-    wallet_address: Joi.string().min(42).required(),
-  });
-  const { validation_error } = schema.validate(req.body);
-  if (validation_error)
-    return res.status(400).json({
-      message: validation_error.details[0].message,
-    });
-
   const salt = await bcrypt.genSalt(10);
   const hashed_password = await bcrypt.hash(password, salt);
   try {
