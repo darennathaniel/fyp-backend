@@ -1,10 +1,10 @@
 const express = require("express");
-const dotenv = require("dotenv");
+const cookieParser = require("cookie-parser");
+const dotenv = require("dotenv").config();
 const { Web3 } = require("web3");
 const { abi, networks } = require("./SupplyChainNetwork.json");
 
 //For env File
-dotenv.config();
 const app = express();
 const port = process.env.PORT || 4000;
 const url = "http://127.0.0.1:7545";
@@ -17,12 +17,17 @@ const contract_router = require("./router/contract.router");
 const product_router = require("./router/product.router");
 const request_router = require("./router/request.router");
 const supply_router = require("./router/supply.router");
+const user_router = require("./router/user.router");
+
+app.use(express.json());
+app.use(cookieParser());
 
 app.use("/company", company_router);
 app.use("/contract", contract_router);
 app.use("/product", product_router);
 app.use("/request", request_router);
 app.use("/supply", supply_router);
+app.use("/user", user_router);
 
 // app.get("/", async (req, res) => {
 //   const accounts = await web3.eth.getAccounts();
