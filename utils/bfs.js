@@ -8,25 +8,24 @@ const contract = new web3.eth.Contract(abi, networks[5777].address);
 const crypto = require("crypto");
 const company_deserializer = require("./company_deserializer");
 
-module.exports = async (start_node, x, y) => {
+module.exports = async (start_node, x) => {
   const visited = {}; // To keep track of visited nodes
   let queue = []; // Queue for BFS traversal
+  const x_spacing = 200;
+  const y_spacing = 200;
 
   const companies = [];
   const edges = [];
 
-  queue.push([start_node, x, y]);
+  queue.push([start_node, 0]);
   visited[start_node] = true;
 
-  let y_counter = y + 100;
-
   while (queue.length > 0) {
-    let x_counter = x;
     let temp = [];
+    const x_offset = (-(queue.length - 1) * x_spacing) / 2;
     for (let i = 0; i < queue.length; i++) {
       const current_company_address = queue[i][0]; // Dequeue the front node
-      const current_x = queue[i][1];
-      const current_y = queue[i][2];
+      const level = queue[i][1];
       const current_company = company_deserializer(
         await contract.methods.getCompany(current_company_address).call()
       );
@@ -35,8 +34,8 @@ module.exports = async (start_node, x, y) => {
         ...current_company,
         id: current_company.owner,
         position: {
-          x: current_x,
-          y: current_y,
+          x: x + x_offset + i * x_spacing,
+          y: level * y_spacing,
         },
         data: {
           label: current_company.name,
@@ -51,15 +50,13 @@ module.exports = async (start_node, x, y) => {
           source: current_company_address,
           target: neighbors[i].companyId,
         });
-        x_counter += 100;
         if (!visited[neighbor]) {
-          temp.push([neighbor, x_counter, y_counter]); // Enqueue the neighbor
+          temp.push([neighbor, level + 1]); // Enqueue the neighbor
           visited[neighbor] = true; // Mark neighbor as visited
         }
       }
     }
     queue = temp;
-    y_counter += 100;
   }
   return { companies, edges };
 };
