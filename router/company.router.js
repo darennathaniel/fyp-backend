@@ -63,7 +63,7 @@ router.get("/", async (req, res) => {
       const { companies, edges } = await bfs(req.query.company_address, 0);
       return res.status(200).json({
         message: "company obtained",
-        data: [companies[0], { companies: companies.slice(1), edges }],
+        data: [companies[0], { companies: companies, edges }],
       });
     } catch (err) {
       return res.status(400).json({

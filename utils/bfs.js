@@ -45,11 +45,30 @@ module.exports = async (start_node, x) => {
       const neighbors = current_company.downstream;
       for (let i = 0; i < neighbors.length; i++) {
         const neighbor = neighbors[i].companyId;
-        edges.push({
-          id: crypto.randomBytes(16).toString("hex"),
-          source: current_company_address,
-          target: neighbors[i].companyId,
-        });
+        const product = await contract.methods
+          .listOfProducts(neighbors[i].productId)
+          .call();
+        if (
+          edges.some(
+            (edge) =>
+              edge.source === current_company_address &&
+              edge.target === neighbor
+          )
+        ) {
+          const index = edges.findIndex(
+            (edge) =>
+              edge.source === current_company_address &&
+              edge.target === neighbor
+          );
+          edges[index].label += `, ${product.productName}`;
+        } else {
+          edges.push({
+            id: crypto.randomBytes(16).toString("hex"),
+            source: current_company_address,
+            target: neighbor,
+            label: product.productName,
+          });
+        }
         if (!visited[neighbor]) {
           temp.push([neighbor, level + 1]); // Enqueue the neighbor
           visited[neighbor] = true; // Mark neighbor as visited
