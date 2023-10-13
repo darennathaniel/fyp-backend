@@ -81,12 +81,12 @@ router.get("/", async (req, res) => {
     }
     const result = { companies: [], edges: [] };
     let x = 0;
-    let y = 0;
+    const x_offset = 400;
     for (let i = 0; i < head_companies_length; i++) {
       const { companies, edges } = await bfs(head_companies[i].owner, x);
       result.companies.push(...companies);
       result.edges.push(...edges);
-      x += 400;
+      x += x_offset;
     }
     res.status(200).json({
       message: "company result",
