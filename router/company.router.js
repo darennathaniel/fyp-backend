@@ -3,6 +3,7 @@ const router = express.Router();
 const token_verification = require("../middleware/token_verification");
 const User = require("../schema/User.model");
 const company_deserializer = require("../utils/company_deserializer");
+const bfs = require("../utils/bfs");
 
 const { Web3 } = require("web3");
 const { abi, networks } = require("../SupplyChainNetwork.json");
@@ -59,13 +60,12 @@ router.get("/", async (req, res) => {
         return res.status(404).json({
           message: "company does not exist",
         });
-      const deserialized_company = company_deserializer(company);
+      const { companies, edges } = await bfs(req.query.company_address, 0, 0);
       return res.status(200).json({
         message: "company obtained",
-        data: [deserialized_company],
+        data: [companies[0], { companies: companies.slice(1), edges }],
       });
     } catch (err) {
-      console.log("aight");
       return res.status(400).json({
         message: err.message,
       });
@@ -79,9 +79,19 @@ router.get("/", async (req, res) => {
     for (let i = 0; i < head_companies_length; i++) {
       head_companies.push(await contract.methods.headCompanies(i).call());
     }
+    const result = { companies: [], edges: [] };
+    let x = 0;
+    let y = 0;
+    for (let i = 0; i < head_companies_length; i++) {
+      const { companies, edges } = await bfs(head_companies[i].owner, x, y);
+      result.companies.push(...companies);
+      result.edges.push(...edges);
+      x += 100;
+      y += 100;
+    }
     res.status(200).json({
       message: "company result",
-      data: head_companies,
+      data: [result],
     });
   } catch (err) {
     return res.status(400).json({
