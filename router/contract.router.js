@@ -20,7 +20,7 @@ router.get("/incoming", token_verification, async (req, res) => {
         await contract.methods.getCompany(req.wallet_address).call()
       );
       const filtered_contract = company.incomingContract.filter(
-        (contract) => contract.id === req.query.contract_id
+        (contract) => contract.id === Number(req.query.contract_id)
       );
       return res.status(200).json({
         message: "incoming contracts obtained",
@@ -54,7 +54,7 @@ router.get("/outgoing", token_verification, async (req, res) => {
         await contract.methods.getCompany(req.wallet_address).call()
       );
       const filtered_contract = company.outgoingContract.filter(
-        (contract) => contract.id === req.query.contract_id
+        (contract) => contract.id === Number(req.query.contract_id)
       );
       return res.status(200).json({
         message: "outgoing contracts obtained",
@@ -143,7 +143,7 @@ router.post("/", token_verification, async (req, res) => {
       )
     )
       return res.status(400).json({
-        message: "contract has been created!",
+        message: "sending the same contract is not allowed!",
       });
     await contract.methods
       .sendContract({
