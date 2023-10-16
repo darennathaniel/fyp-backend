@@ -245,6 +245,10 @@ router.post("/approve", token_verification, async (req, res) => {
     return res.status(400).json({
       message: "product ID does not exist in body",
     });
+  if (req.body.to !== req.wallet_address)
+    return res.status(403).json({
+      message: "only to address are allowed to decline the contract",
+    });
   try {
     await contract.methods
       .approveContract({
@@ -281,6 +285,10 @@ router.post("/decline", token_verification, async (req, res) => {
   if (!req.body.product_id)
     return res.status(400).json({
       message: "product ID does not exist in body",
+    });
+  if (req.body.to !== req.wallet_address)
+    return res.status(403).json({
+      message: "only to address are allowed to decline the contract",
     });
   try {
     await contract.methods
