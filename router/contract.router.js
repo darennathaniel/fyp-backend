@@ -22,9 +22,26 @@ router.get("/incoming", token_verification, async (req, res) => {
       const filtered_contract = company.incomingContract.filter(
         (contract) => contract.id === Number(req.query.contract_id)
       );
-      return res.status(200).json({
-        message: "incoming contracts obtained",
-        data: filtered_contract.length === 1 ? filtered_contract : [],
+      if (filtered_contract.length === 1) {
+        const product = product_deserializer(
+          await contract.methods
+            .listOfProducts(filtered_contract[0].productId)
+            .call()
+        );
+        return res.status(200).json({
+          message: "outgoing contracts obtained",
+          data: [
+            {
+              id: filtered_contract[0].id,
+              product,
+              from: filtered_contract[0].from,
+              to: filtered_contract[0].to,
+            },
+          ],
+        });
+      }
+      return res.status(400).json({
+        message: "no such contract in database",
       });
     } catch (err) {
       return res.status(400).json({
@@ -36,9 +53,24 @@ router.get("/incoming", token_verification, async (req, res) => {
     const company = company_deserializer(
       await contract.methods.getCompany(req.wallet_address).call()
     );
+    const incoming_contract = await Promise.all(
+      company.incomingContract.map(async (company_contract) => {
+        const product = product_deserializer(
+          await contract.methods
+            .listOfProducts(company_contract.productId)
+            .call()
+        );
+        return {
+          id: company_contract.id,
+          product,
+          from: company_contract.from,
+          to: company_contract.to,
+        };
+      })
+    );
     return res.status(200).json({
       message: "incoming contracts obtained",
-      data: [company.incomingContract],
+      data: [incoming_contract],
     });
   } catch (err) {
     return res.status(400).json({
@@ -56,9 +88,26 @@ router.get("/outgoing", token_verification, async (req, res) => {
       const filtered_contract = company.outgoingContract.filter(
         (contract) => contract.id === Number(req.query.contract_id)
       );
-      return res.status(200).json({
-        message: "outgoing contracts obtained",
-        data: filtered_contract.length === 1 ? filtered_contract : [],
+      if (filtered_contract.length === 1) {
+        const product = product_deserializer(
+          await contract.methods
+            .listOfProducts(filtered_contract[0].productId)
+            .call()
+        );
+        return res.status(200).json({
+          message: "outgoing contracts obtained",
+          data: [
+            {
+              id: filtered_contract[0].id,
+              product,
+              from: filtered_contract[0].from,
+              to: filtered_contract[0].to,
+            },
+          ],
+        });
+      }
+      return res.status(400).json({
+        message: "no such contract in database",
       });
     } catch (err) {
       return res.status(400).json({
@@ -70,9 +119,24 @@ router.get("/outgoing", token_verification, async (req, res) => {
     const company = company_deserializer(
       await contract.methods.getCompany(req.wallet_address).call()
     );
+    const outgoing_contract = await Promise.all(
+      company.outgoingContract.map(async (company_contract) => {
+        const product = product_deserializer(
+          await contract.methods
+            .listOfProducts(company_contract.productId)
+            .call()
+        );
+        return {
+          id: company_contract.id,
+          product,
+          from: company_contract.from,
+          to: company_contract.to,
+        };
+      })
+    );
     return res.status(200).json({
       message: "outgoing contracts obtained",
-      data: [company.outgoingContract],
+      data: [outgoing_contract],
     });
   } catch (err) {
     return res.status(400).json({
