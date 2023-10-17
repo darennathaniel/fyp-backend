@@ -11,6 +11,10 @@ mongoose
   .catch((err) => console.log(err.response));
 
 const supply_schema = new Schema({
+  supplyId: {
+    type: Number,
+    required: true,
+  },
   productId: {
     type: Number,
     required: true,
