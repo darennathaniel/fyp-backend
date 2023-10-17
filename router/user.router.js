@@ -11,8 +11,8 @@ router.get("/", token_verification, async (req, res) => {
     username: req.username,
   });
   return res.status(200).json({
-    username: req.username,
-    wallet_address: req.wallet_address,
+    username: user.username,
+    wallet_address: user.wallet_address,
   });
 });
 router.post("/login", async (req, res) => {
