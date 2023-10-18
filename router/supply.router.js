@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const Supply = require("../schema/Supply.model");
 
+const Supply = require("../schema/Supply.model");
 const token_verification = require("../middleware/token_verification");
 const supply_deserializer = require("../utils/supply_deserializer");
 const crypto = require("crypto");
@@ -66,9 +66,14 @@ router.get("/", async (req, res) => {
         .getSupply(req.query.product_id)
         .call({ from: req.query.company_address })
     );
+    const supplies = await Promise.all(
+      supply.supplyId.map(
+        async (supply_id) => await Supply.findOne({ supplyId: supply_id })
+      )
+    );
     return res.status(200).json({
       message: "product supply retrieved",
-      data: [supply],
+      data: [{ ...supply, supplies }],
     });
   } catch (err) {
     if (err.name && err.name === "ContractExecutionError")
