@@ -1,7 +1,9 @@
 const express = require("express");
 const router = express.Router();
 
+const Supply = require("../schema/Supply.model");
 const token_verification = require("../middleware/token_verification");
+const supply_deserializer = require("../utils/supply_deserializer");
 const company_deserializer = require("../utils/company_deserializer");
 const product_deserializer = require("../utils/product_deserializer");
 const crypto = require("crypto");
@@ -194,7 +196,6 @@ router.post("/", token_verification, async (req, res) => {
   }
 });
 
-// TODO: work in progress i.e not done
 router.post("/approve", token_verification, async (req, res) => {
   if (!req.body.id)
     return res.status(400).json({
@@ -220,24 +221,52 @@ router.post("/approve", token_verification, async (req, res) => {
     return res.status(403).json({
       message: "only to address are allowed to decline the contract",
     });
-  // TODO: check if supply is more than equals to requested
-  // if not return error
-  try {
-    // TODO: left with supplyIdsAndQuantities parameter
+  const supplies = supply_deserializer(
     await contract.methods
-      .approveRequest({
-        id: req.body.id,
-        from: req.body.from,
-        to: req.body.to,
-        productId: req.body.product_id,
-        quantity: req.body.quantity,
-      })
+      .getSupply(req.body.product_id)
+      .call({ from: req.wallet_address })
+  );
+  if (supplies.total < req.body.quantity)
+    return res.status(400).json({
+      message:
+        "supplier does not have enough stock to proceed with the request",
+    });
+  try {
+    let counter = req.body.quantity;
+    let index = 0;
+    const supply_ids = [];
+    const quantities = [];
+    const supply_schema = await Supply.find({ productId: req.body.product_id });
+    supply_schema.sort((a, b) => a.timestamp - b.timestamp);
+    while (counter > 0) {
+      const current_supply = supply_schema[index];
+      let decrement = Math.min(counter, current_supply.quantity_left);
+      supply_ids.push(current_supply.supplyId);
+      quantities.push(decrement);
+      counter -= decrement;
+      supply_schema[index].quantity_left -= decrement;
+      index += 1;
+    }
+    await contract.methods
+      .approveRequest(
+        {
+          id: req.body.id,
+          from: req.body.from,
+          to: req.body.to,
+          productId: req.body.product_id,
+          quantity: req.body.quantity,
+        },
+        supply_ids,
+        quantities
+      )
       .send({ from: req.wallet_address, gas: "6721975" });
+    supply_schema.forEach((schema) => schema.save());
     res.status(200).json({
       message: "contract has been approved",
       data: [],
     });
   } catch (err) {
+    console.log(err);
     return res.status(400).json({
       message: err.message,
     });
