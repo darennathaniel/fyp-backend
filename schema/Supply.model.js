@@ -27,10 +27,6 @@ const supply_schema = new Schema({
     type: Number,
     required: true,
   },
-  past: {
-    type: Array,
-    required: true,
-  },
   timestamp: {
     type: Date,
     required: true,
