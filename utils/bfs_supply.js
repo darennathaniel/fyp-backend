@@ -1,0 +1,70 @@
+const { Web3 } = require("web3");
+const { abi, networks } = require("../SupplyChainNetwork.json");
+const url = "http://127.0.0.1:7545";
+const provider = new Web3.providers.HttpProvider(url);
+const web3 = new Web3(provider);
+const contract = new web3.eth.Contract(abi, networks[5777].address);
+
+const crypto = require("crypto");
+const past_supply_deserializer = require("./past_supply_deserializer");
+const product_deserializer = require("./product_deserializer");
+const Supply = require("../schema/Supply.model");
+
+module.exports = async (start_node, x) => {
+  const visited = {}; // To keep track of visited nodes
+  let queue = []; // Queue for BFS traversal
+  const x_spacing = 200;
+  const y_spacing = 200;
+
+  const supplies = [];
+  const edges = [];
+
+  queue.push([start_node, 0]);
+  visited[start_node] = true;
+  try {
+    while (queue.length > 0) {
+      let temp = [];
+      const x_offset = (-(queue.length - 1) * x_spacing) / 2;
+      for (let i = 0; i < queue.length; i++) {
+        const current_supply_id = queue[i][0]; // Dequeue the front node
+        const level = queue[i][1];
+        const supply = await Supply.findOne({ supplyId: current_supply_id });
+        const product = product_deserializer(
+          await contract.methods.listOfProducts(supply.productId).call()
+        );
+        supplies.push({
+          ...supply._doc,
+          id: supply.supplyId,
+          position: {
+            x: x + x_offset + i * x_spacing,
+            y: level * y_spacing,
+          },
+          data: {
+            label: `${product.productName} timestamp ${supply.timestamp}`,
+          },
+        });
+        const current_supply = past_supply_deserializer(
+          await contract.methods.getPastSupply(current_supply_id).call()
+        );
+        const neighbors = current_supply.pastSupply;
+        for (let i = 0; i < neighbors.length; i++) {
+          const neighbor = neighbors[i];
+          if (!visited[neighbor]) {
+            edges.push({
+              id: crypto.randomBytes(16).toString("hex"),
+              source: current_supply_id,
+              target: neighbor,
+              label: product.productName,
+            });
+            temp.push([neighbor, level + 1]); // Enqueue the neighbor
+            visited[neighbor] = true; // Mark neighbor as visited
+          }
+        }
+      }
+      queue = temp;
+    }
+  } catch (err) {
+    return { supplies, edges };
+  }
+  return { supplies, edges };
+};

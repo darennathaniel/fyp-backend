@@ -6,6 +6,7 @@ const token_verification = require("../middleware/token_verification");
 const product_deserializer = require("../utils/product_deserializer");
 const supply_deserializer = require("../utils/supply_deserializer");
 const recipe_deserializer = require("../utils/recipe_deserializer");
+const bfs = require("../utils/bfs_supply");
 const crypto = require("crypto");
 
 const { Web3 } = require("web3");
@@ -145,6 +146,11 @@ router.post("/prerequisite", token_verification, async (req, res) => {
 });
 
 router.get("/", async (req, res) => {
+  // TODO: get 1 supply using supply ID or get all supplies
+  // get it from Mongo DB
+});
+
+router.get("/product", async (req, res) => {
   if (!req.query.company_address)
     return res.status(400).json({
       message: "user is not logged in and does not specify which company",
@@ -200,6 +206,30 @@ router.get("/prerequisite", async (req, res) => {
     return res.status(200).json({
       message: "product prerequisite supply retrieved",
       data: [{ ...supply, supplies }],
+    });
+  } catch (err) {
+    if (err.name && err.name === "ContractExecutionError")
+      return res.status(400).json({ message: err.innerError.message });
+    return res.status(400).json({
+      message: err.message,
+    });
+  }
+});
+
+router.get("/track", async (req, res) => {
+  if (!req.query.supply_id)
+    return res
+      .status(400)
+      .json({ message: "supply ID does not exist in body" });
+  try {
+    const { supplies, edges } = await bfs(req.query.supply_id, 0);
+    const result = {
+      supplies,
+      edges,
+    };
+    res.status(200).json({
+      message: "supply track result",
+      data: [result],
     });
   } catch (err) {
     if (err.name && err.name === "ContractExecutionError")

@@ -2,8 +2,7 @@ const express = require("express");
 const router = express.Router();
 const token_verification = require("../middleware/token_verification");
 const User = require("../schema/User.model");
-const company_deserializer = require("../utils/company_deserializer");
-const bfs = require("../utils/bfs");
+const bfs = require("../utils/bfs_company");
 
 const { Web3 } = require("web3");
 const { abi, networks } = require("../SupplyChainNetwork.json");
