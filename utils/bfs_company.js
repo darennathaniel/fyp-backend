@@ -1,12 +1,21 @@
 const { Web3 } = require("web3");
-const { abi, networks } = require("../SupplyChainNetwork.json");
+const supplyChainNetwork = require("../SupplyChainNetwork.json");
+const productContract = require("../ProductContract.json");
 const url = "http://127.0.0.1:7545";
 const provider = new Web3.providers.HttpProvider(url);
 const web3 = new Web3(provider);
-const contract = new web3.eth.Contract(abi, networks[5777].address);
+const sc_contract = new web3.eth.Contract(
+  supplyChainNetwork.abi,
+  supplyChainNetwork.networks[5777].address
+);
+const p_contract = new web3.eth.Contract(
+  productContract.abi,
+  productContract.networks[5777].address
+);
 
 const crypto = require("crypto");
 const company_deserializer = require("./company_deserializer");
+const product_deserializer = require("./product_deserializer");
 
 module.exports = async (start_node, x) => {
   const visited = {}; // To keep track of visited nodes
@@ -27,11 +36,25 @@ module.exports = async (start_node, x) => {
       const current_company_address = queue[i][0]; // Dequeue the front node
       const level = queue[i][1];
       const current_company = company_deserializer(
-        await contract.methods.getCompany(current_company_address).call()
+        await sc_contract.methods.getCompany(current_company_address).call()
       );
 
       companies.push({
         ...current_company,
+        listOfSupply: await Promise.all(
+          current_company.listOfSupply.map(async (id) =>
+            product_deserializer(
+              await p_contract.methods.listOfProducts(id).call()
+            )
+          )
+        ),
+        listOfPrerequisites: await Promise.all(
+          current_company.listOfPrerequisites.map(async (id) =>
+            product_deserializer(
+              await p_contract.methods.listOfProducts(id).call()
+            )
+          )
+        ),
         id: current_company.owner,
         position: {
           x: x + x_offset + i * x_spacing,
@@ -45,7 +68,7 @@ module.exports = async (start_node, x) => {
       const neighbors = current_company.downstream;
       for (let i = 0; i < neighbors.length; i++) {
         const neighbor = neighbors[i].companyId;
-        const product = await contract.methods
+        const product = await p_contract.methods
           .listOfProducts(neighbors[i].productId)
           .call();
         if (

@@ -7,24 +7,32 @@ const company_deserializer = require("../utils/company_deserializer");
 const product_deserializer = require("../utils/product_deserializer");
 
 const { Web3 } = require("web3");
-const { abi, networks } = require("../SupplyChainNetwork.json");
+const supplyChainNetwork = require("../SupplyChainNetwork.json");
+const productContract = require("../ProductContract.json");
 const url = "http://127.0.0.1:7545";
 const provider = new Web3.providers.HttpProvider(url);
 const web3 = new Web3(provider);
-const contract = new web3.eth.Contract(abi, networks[5777].address);
+const sc_contract = new web3.eth.Contract(
+  supplyChainNetwork.abi,
+  supplyChainNetwork.networks[5777].address
+);
+const p_contract = new web3.eth.Contract(
+  productContract.abi,
+  productContract.networks[5777].address
+);
 
 router.get("/incoming", token_verification, async (req, res) => {
   if (req.query.contract_id) {
     try {
       const company = company_deserializer(
-        await contract.methods.getCompany(req.wallet_address).call()
+        await sc_contract.methods.getCompany(req.wallet_address).call()
       );
       const filtered_contract = company.incomingContract.filter(
         (contract) => contract.id === Number(req.query.contract_id)
       );
       if (filtered_contract.length === 1) {
         const product = product_deserializer(
-          await contract.methods
+          await p_contract.methods
             .listOfProducts(filtered_contract[0].productId)
             .call()
         );
@@ -51,12 +59,12 @@ router.get("/incoming", token_verification, async (req, res) => {
   }
   try {
     const company = company_deserializer(
-      await contract.methods.getCompany(req.wallet_address).call()
+      await sc_contract.methods.getCompany(req.wallet_address).call()
     );
     const incoming_contract = await Promise.all(
       company.incomingContract.map(async (company_contract) => {
         const product = product_deserializer(
-          await contract.methods
+          await p_contract.methods
             .listOfProducts(company_contract.productId)
             .call()
         );
@@ -83,14 +91,14 @@ router.get("/outgoing", token_verification, async (req, res) => {
   if (req.query.contract_id) {
     try {
       const company = company_deserializer(
-        await contract.methods.getCompany(req.wallet_address).call()
+        await sc_contract.methods.getCompany(req.wallet_address).call()
       );
       const filtered_contract = company.outgoingContract.filter(
         (contract) => contract.id === Number(req.query.contract_id)
       );
       if (filtered_contract.length === 1) {
         const product = product_deserializer(
-          await contract.methods
+          await p_contract.methods
             .listOfProducts(filtered_contract[0].productId)
             .call()
         );
@@ -117,12 +125,12 @@ router.get("/outgoing", token_verification, async (req, res) => {
   }
   try {
     const company = company_deserializer(
-      await contract.methods.getCompany(req.wallet_address).call()
+      await sc_contract.methods.getCompany(req.wallet_address).call()
     );
     const outgoing_contract = await Promise.all(
       company.outgoingContract.map(async (company_contract) => {
         const product = product_deserializer(
-          await contract.methods
+          await p_contract.methods
             .listOfProducts(company_contract.productId)
             .call()
         );
@@ -156,23 +164,28 @@ router.get("/products", token_verification, async (req, res) => {
     });
   try {
     const sender_company = company_deserializer(
-      await contract.methods.getCompany(req.wallet_address).call()
+      await sc_contract.methods.getCompany(req.wallet_address).call()
     );
     const receiver_company = company_deserializer(
-      await contract.methods.getCompany(req.query.to).call()
+      await sc_contract.methods.getCompany(req.query.to).call()
     );
     const sender_products_from_receiver = sender_company.downstream
       .filter((company_product) => company_product.companyId === req.query.to)
       .map((company_product) => company_product.productId);
+
     const list_of_products = receiver_company.listOfSupply.filter(
-      (product) =>
-        !sender_products_from_receiver.includes(
-          product_deserializer(product).productId
+      (product_id) => !sender_products_from_receiver.includes(product_id)
+    );
+    const fetched_products = await Promise.all(
+      list_of_products.map(async (product_id) =>
+        product_deserializer(
+          await p_contract.methods.listOfProducts(product_id).call()
         )
+      )
     );
     return res.status(200).json({
       message: `list of available products from company ${req.query.to}`,
-      data: [list_of_products],
+      data: [fetched_products],
     });
   } catch (err) {
     return res.status(400).json({
@@ -197,7 +210,7 @@ router.post("/", token_verification, async (req, res) => {
   const id = parseInt(crypto.randomBytes(2).toString("hex"), 16);
   try {
     const company = company_deserializer(
-      await contract.methods.getCompany(req.wallet_address).call()
+      await sc_contract.methods.getCompany(req.wallet_address).call()
     );
     if (
       company.downstream.some(
@@ -209,7 +222,7 @@ router.post("/", token_verification, async (req, res) => {
       return res.status(400).json({
         message: "sending the same contract is not allowed!",
       });
-    await contract.methods
+    await sc_contract.methods
       .sendContract({
         id,
         from: req.wallet_address,
@@ -250,7 +263,7 @@ router.post("/approve", token_verification, async (req, res) => {
       message: "only to address are allowed to decline the contract",
     });
   try {
-    await contract.methods
+    await sc_contract.methods
       .approveContract({
         id: req.body.id,
         from: req.body.from,
@@ -291,7 +304,7 @@ router.post("/decline", token_verification, async (req, res) => {
       message: "only to address are allowed to decline the contract",
     });
   try {
-    await contract.methods
+    await sc_contract.methods
       .declineContract({
         id: req.body.id,
         from: req.body.from,
