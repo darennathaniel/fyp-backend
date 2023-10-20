@@ -1,9 +1,17 @@
 const { Web3 } = require("web3");
-const { abi, networks } = require("../SupplyChainNetwork.json");
+const supplyChainNetwork = require("../SupplyChainNetwork.json");
+const productContract = require("../ProductContract.json");
 const url = "http://127.0.0.1:7545";
 const provider = new Web3.providers.HttpProvider(url);
 const web3 = new Web3(provider);
-const contract = new web3.eth.Contract(abi, networks[5777].address);
+const sc_contract = new web3.eth.Contract(
+  supplyChainNetwork.abi,
+  supplyChainNetwork.networks[5777].address
+);
+const p_contract = new web3.eth.Contract(
+  productContract.abi,
+  productContract.networks[5777].address
+);
 
 const crypto = require("crypto");
 const past_supply_deserializer = require("./past_supply_deserializer");
@@ -30,7 +38,7 @@ module.exports = async (start_node, x) => {
         const level = queue[i][1];
         const supply = await Supply.findOne({ supplyId: current_supply_id });
         const product = product_deserializer(
-          await contract.methods.listOfProducts(supply.productId).call()
+          await p_contract.methods.listOfProducts(supply.productId).call()
         );
         supplies.push({
           ...supply._doc,
@@ -44,17 +52,24 @@ module.exports = async (start_node, x) => {
           },
         });
         const current_supply = past_supply_deserializer(
-          await contract.methods.getPastSupply(current_supply_id).call()
+          await sc_contract.methods.getPastSupply(current_supply_id).call()
         );
         const neighbors = current_supply.pastSupply;
         for (let i = 0; i < neighbors.length; i++) {
           const neighbor = neighbors[i];
+          const neighbor_supply = await Supply.findOne({ supplyId: neighbor });
           if (!visited[neighbor]) {
             edges.push({
               id: crypto.randomBytes(16).toString("hex"),
               source: current_supply_id,
               target: neighbor,
-              label: product.productName,
+              label: `${product.productName} + ${
+                product_deserializer(
+                  await p_contract.methods
+                    .listOfProducts(neighbor_supply.productId)
+                    .call()
+                ).productName
+              }`,
             });
             temp.push([neighbor, level + 1]); // Enqueue the neighbor
             visited[neighbor] = true; // Mark neighbor as visited

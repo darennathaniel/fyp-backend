@@ -9,24 +9,32 @@ const product_deserializer = require("../utils/product_deserializer");
 const crypto = require("crypto");
 
 const { Web3 } = require("web3");
-const { abi, networks } = require("../SupplyChainNetwork.json");
+const supplyChainNetwork = require("../SupplyChainNetwork.json");
+const productContract = require("../ProductContract.json");
 const url = "http://127.0.0.1:7545";
 const provider = new Web3.providers.HttpProvider(url);
 const web3 = new Web3(provider);
-const contract = new web3.eth.Contract(abi, networks[5777].address);
+const sc_contract = new web3.eth.Contract(
+  supplyChainNetwork.abi,
+  supplyChainNetwork.networks[5777].address
+);
+const p_contract = new web3.eth.Contract(
+  productContract.abi,
+  productContract.networks[5777].address
+);
 
 router.get("/incoming", token_verification, async (req, res) => {
   if (req.query.request_id) {
     try {
       const company = company_deserializer(
-        await contract.methods.getCompany(req.wallet_address).call()
+        await sc_contract.methods.getCompany(req.wallet_address).call()
       );
       const filtered_request = company.incomingRequests.filter(
         (request) => request.id === Number(req.query.request_id)
       );
       if (filtered_request.length === 1) {
         const product = product_deserializer(
-          await contract.methods
+          await p_contract.methods
             .listOfProducts(filtered_request[0].productId)
             .call()
         );
@@ -54,12 +62,12 @@ router.get("/incoming", token_verification, async (req, res) => {
   }
   try {
     const company = company_deserializer(
-      await contract.methods.getCompany(req.wallet_address).call()
+      await sc_contract.methods.getCompany(req.wallet_address).call()
     );
     const incoming_contract = await Promise.all(
       company.incomingRequests.map(async (request) => {
         const product = product_deserializer(
-          await contract.methods.listOfProducts(request.productId).call()
+          await p_contract.methods.listOfProducts(request.productId).call()
         );
         return {
           id: request.id,
@@ -85,7 +93,7 @@ router.get("/outgoing", token_verification, async (req, res) => {
   if (req.query.request_id) {
     try {
       const company = company_deserializer(
-        await contract.methods.getCompany(req.wallet_address).call()
+        await sc_contract.methods.getCompany(req.wallet_address).call()
       );
       const filtered_request = company.outgoingRequests.filter(
         (request) => request.id === Number(req.query.request_id)
@@ -120,12 +128,12 @@ router.get("/outgoing", token_verification, async (req, res) => {
   }
   try {
     const company = company_deserializer(
-      await contract.methods.getCompany(req.wallet_address).call()
+      await sc_contract.methods.getCompany(req.wallet_address).call()
     );
     const outgoing_contract = await Promise.all(
       company.outgoingRequests.map(async (request) => {
         const product = product_deserializer(
-          await contract.methods.listOfProducts(request.productId).call()
+          await p_contract.methods.listOfProducts(request.productId).call()
         );
         return {
           id: request.id,
@@ -165,7 +173,7 @@ router.post("/", token_verification, async (req, res) => {
       message: "cannot send contract to self",
     });
   const downstream = company_deserializer(
-    await contract.methods.getCompany(req.wallet_address).call()
+    await sc_contract.methods.getCompany(req.wallet_address).call()
   ).downstream;
   if (
     downstream.filter((company) => company.companyId === req.body.to).length ===
@@ -176,7 +184,7 @@ router.post("/", token_verification, async (req, res) => {
     });
   const id = parseInt(crypto.randomBytes(2).toString("hex"), 16);
   try {
-    await contract.methods
+    await sc_contract.methods
       .sendRequest({
         id,
         from: req.wallet_address,
@@ -222,7 +230,7 @@ router.post("/approve", token_verification, async (req, res) => {
       message: "only to address are allowed to decline the contract",
     });
   const supplies = supply_deserializer(
-    await contract.methods
+    await sc_contract.methods
       .getSupply(req.body.product_id)
       .call({ from: req.wallet_address })
   );
@@ -247,7 +255,7 @@ router.post("/approve", token_verification, async (req, res) => {
       supply_schema[index].quantity_left -= decrement;
       index += 1;
     }
-    await contract.methods
+    await sc_contract.methods
       .approveRequest(
         {
           id: req.body.id,
@@ -266,7 +274,6 @@ router.post("/approve", token_verification, async (req, res) => {
       data: [],
     });
   } catch (err) {
-    console.log(err);
     return res.status(400).json({
       message: err.message,
     });
@@ -299,7 +306,7 @@ router.post("/decline", token_verification, async (req, res) => {
       message: "only to address are allowed to decline the contract",
     });
   try {
-    await contract.methods
+    await sc_contract.methods
       .declineRequest({
         id: req.body.id,
         from: req.body.from,

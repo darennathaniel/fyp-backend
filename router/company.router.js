@@ -5,11 +5,19 @@ const User = require("../schema/User.model");
 const bfs = require("../utils/bfs_company");
 
 const { Web3 } = require("web3");
-const { abi, networks } = require("../SupplyChainNetwork.json");
+const supplyChainNetwork = require("../SupplyChainNetwork.json");
+const productContract = require("../ProductContract.json");
 const url = "http://127.0.0.1:7545";
 const provider = new Web3.providers.HttpProvider(url);
 const web3 = new Web3(provider);
-const contract = new web3.eth.Contract(abi, networks[5777].address);
+const sc_contract = new web3.eth.Contract(
+  supplyChainNetwork.abi,
+  supplyChainNetwork.networks[5777].address
+);
+const p_contract = new web3.eth.Contract(
+  productContract.abi,
+  productContract.networks[5777].address
+);
 
 router.post("/", token_verification, async (req, res) => {
   if (!req.body.owner)
@@ -35,10 +43,13 @@ router.post("/", token_verification, async (req, res) => {
       wallet_address: req.body.owner,
       is_owner: false,
     });
-    await contract.methods
+    await sc_contract.methods
       .addCompany(req.body.owner, req.body.company_name)
       .send({ from: req.wallet_address, gas: "6721975" });
-    const company = await contract.methods.getCompany(req.body.owner).call();
+    await p_contract.methods
+      .addCompany(req.body.owner)
+      .send({ from: req.wallet_address, gas: "6721975" });
+    const company = await sc_contract.methods.getCompany(req.body.owner).call();
     return res.status(200).json({
       message: "company created",
       data: [company],
@@ -54,7 +65,9 @@ router.get("/", async (req, res) => {
   if (req.query.company_address) {
     const company_address = req.query.company_address;
     try {
-      const company = await contract.methods.getCompany(company_address).call();
+      const company = await sc_contract.methods
+        .getCompany(company_address)
+        .call();
       if (!company.exist)
         return res.status(404).json({
           message: "company does not exist",
@@ -72,11 +85,11 @@ router.get("/", async (req, res) => {
   }
   try {
     let head_companies = [];
-    const head_companies_length = await contract.methods
+    const head_companies_length = await sc_contract.methods
       .getHeadCompaniesLength()
       .call();
     for (let i = 0; i < head_companies_length; i++) {
-      head_companies.push(await contract.methods.headCompanies(i).call());
+      head_companies.push(await sc_contract.methods.headCompanies(i).call());
     }
     const result = { companies: [], edges: [] };
     let x = 0;

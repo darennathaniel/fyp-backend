@@ -10,11 +10,19 @@ const bfs = require("../utils/bfs_supply");
 const crypto = require("crypto");
 
 const { Web3 } = require("web3");
-const { abi, networks } = require("../SupplyChainNetwork.json");
+const supplyChainNetwork = require("../SupplyChainNetwork.json");
+const productContract = require("../ProductContract.json");
 const url = "http://127.0.0.1:7545";
 const provider = new Web3.providers.HttpProvider(url);
 const web3 = new Web3(provider);
-const contract = new web3.eth.Contract(abi, networks[5777].address);
+const sc_contract = new web3.eth.Contract(
+  supplyChainNetwork.abi,
+  supplyChainNetwork.networks[5777].address
+);
+const p_contract = new web3.eth.Contract(
+  productContract.abi,
+  productContract.networks[5777].address
+);
 
 router.post("/", token_verification, async (req, res) => {
   if (!req.body.product_id)
@@ -27,7 +35,7 @@ router.post("/", token_verification, async (req, res) => {
       .json({ message: "number of supply does not exist in body" });
   const id = parseInt(crypto.randomBytes(2).toString("hex"), 16);
   try {
-    await contract.methods
+    await sc_contract.methods
       .convertToSupply(req.body.product_id, req.body.number_of_supply, id)
       .send({
         from: req.wallet_address,
@@ -65,7 +73,7 @@ router.post("/prerequisite", token_verification, async (req, res) => {
   const id = parseInt(crypto.randomBytes(2).toString("hex"), 16);
   try {
     const recipe = recipe_deserializer(
-      await contract.methods
+      await p_contract.methods
         .getRecipe(req.body.product_id)
         .call({ from: req.wallet_address })
     );
@@ -79,7 +87,7 @@ router.post("/prerequisite", token_verification, async (req, res) => {
         const prerequisite_deserialize = product_deserializer(prerequisite);
         prerequisite_product_ids.push(prerequisite_deserialize.productId);
         const prerequisite_supply = supply_deserializer(
-          await contract.methods
+          await sc_contract.methods
             .getPrerequisiteSupply(prerequisite_deserialize.productId)
             .call({ from: req.wallet_address })
         );
@@ -112,7 +120,7 @@ router.post("/prerequisite", token_verification, async (req, res) => {
         }
       })
     );
-    await contract.methods
+    await sc_contract.methods
       .convertPrerequisiteToSupply(
         req.body.product_id,
         req.body.number_of_supply,
@@ -133,7 +141,7 @@ router.post("/prerequisite", token_verification, async (req, res) => {
       timestamp: new Date(),
     });
     return res.status(200).json({
-      message: "test",
+      message: "prerequisite supply converted to product supply",
       data: [supply],
     });
   } catch (err) {
@@ -161,7 +169,7 @@ router.get("/product", async (req, res) => {
       .json({ message: "product ID does not exist in body" });
   try {
     const supply = supply_deserializer(
-      await contract.methods
+      await sc_contract.methods
         .getSupply(req.query.product_id)
         .call({ from: req.query.company_address })
     );
@@ -194,7 +202,7 @@ router.get("/prerequisite", async (req, res) => {
       .json({ message: "product ID does not exist in body" });
   try {
     const supply = supply_deserializer(
-      await contract.methods
+      await sc_contract.methods
         .getPrerequisiteSupply(req.query.product_id)
         .call({ from: req.query.company_address })
     );

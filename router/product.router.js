@@ -8,6 +8,7 @@ const product_deserializer = require("../utils/product_deserializer");
 const { Web3 } = require("web3");
 const supplyChainNetwork = require("../SupplyChainNetwork.json");
 const productContract = require("../ProductContract.json");
+const company_deserializer = require("../utils/company_deserializer");
 const url = "http://127.0.0.1:7545";
 const provider = new Web3.providers.HttpProvider(url);
 const web3 = new Web3(provider);
@@ -87,15 +88,25 @@ router.post("/", token_verification, async (req, res) => {
     return res.status(400).json({
       message: "quantity prerequisite supplies does not exist in body",
     });
-  const prerequisite_supplies = req.body.prerequisite_supplies.map((supply) => {
-    return {
-      productId: supply.product_id,
-      productName: supply.product_name,
-      exist: true,
-    };
-  });
-  const id = parseInt(crypto.randomBytes(2).toString("hex"), 16);
   try {
+    const company = company_deserializer(
+      await sc_contract.methods.getCompany(req.wallet_address).call()
+    );
+    const prerequisite_supplies = req.body.prerequisite_supplies.map(
+      (supply) => {
+        if (
+          company.listOfPrerequisites.filter((id) => id === supply.product_id)
+            .length === 0
+        )
+          throw Error("product does not exist in prerequisite");
+        return {
+          productId: supply.product_id,
+          productName: supply.product_name,
+          exist: true,
+        };
+      }
+    );
+    const id = parseInt(crypto.randomBytes(2).toString("hex"), 16);
     await p_contract.methods
       .addProductWithRecipe(
         id,
@@ -116,6 +127,8 @@ router.post("/", token_verification, async (req, res) => {
       data: [product_deserializer(product)],
     });
   } catch (err) {
+    if (err.name && err.name === "ContractExecutionError")
+      return res.status(400).json({ message: err.innerError.message });
     return res.status(400).json({
       message: err.message,
     });
