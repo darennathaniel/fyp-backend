@@ -6,6 +6,7 @@ const token_verification = require("../middleware/token_verification");
 const supply_deserializer = require("../utils/supply_deserializer");
 const company_deserializer = require("../utils/company_deserializer");
 const product_deserializer = require("../utils/product_deserializer");
+const events_deserializer = require("../utils/events_deserializer");
 const crypto = require("crypto");
 
 const { Web3 } = require("web3");
@@ -64,23 +65,61 @@ router.get("/incoming", token_verification, async (req, res) => {
     const company = company_deserializer(
       await sc_contract.methods.getCompany(req.wallet_address).call()
     );
-    const incoming_contract = await Promise.all(
-      company.incomingRequests.map(async (request) => {
-        const product = product_deserializer(
-          await p_contract.methods.listOfProducts(request.productId).call()
-        );
-        return {
-          id: request.id,
-          product,
-          from: request.from,
-          to: request.to,
-          quantity: request.quantity,
-        };
-      })
-    );
+    const { timeline = "all" } = req.query;
+    const requests = [];
+    if (timeline === "all") {
+      const incoming_requests = await Promise.all(
+        company.incomingRequests.map(async (request) => {
+          const product = product_deserializer(
+            await p_contract.methods.listOfProducts(request.productId).call()
+          );
+          return {
+            id: request.id,
+            product,
+            from: request.from,
+            to: request.to,
+            quantity: request.quantity,
+          };
+        })
+      );
+      const past_requests = events_deserializer(
+        await sc_contract.getPastEvents("Requests", {
+          to: req.wallet_address,
+          fromBlock: 0,
+          toBlock: "latest",
+        })
+      );
+      requests.push(...incoming_requests, ...past_requests);
+    } else if (timeline === "current") {
+      const incoming_requests = await Promise.all(
+        company.incomingRequests.map(async (request) => {
+          const product = product_deserializer(
+            await p_contract.methods.listOfProducts(request.productId).call()
+          );
+          return {
+            id: request.id,
+            product,
+            from: request.from,
+            to: request.to,
+            quantity: request.quantity,
+          };
+        })
+      );
+      requests.push(...incoming_requests);
+    } else if (timeline === "past") {
+      requests.push(
+        ...events_deserializer(
+          await sc_contract.getPastEvents("Requests", {
+            to: req.wallet_address,
+            fromBlock: 0,
+            toBlock: "latest",
+          })
+        )
+      );
+    }
     return res.status(200).json({
       message: "incoming requests obtained",
-      data: [incoming_contract],
+      data: [requests],
     });
   } catch (err) {
     return res.status(400).json({
@@ -100,7 +139,7 @@ router.get("/outgoing", token_verification, async (req, res) => {
       );
       if (filtered_request.length === 1) {
         const product = product_deserializer(
-          await contract.methods
+          await p_contract.methods
             .listOfProducts(filtered_request[0].productId)
             .call()
         );
