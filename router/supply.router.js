@@ -227,7 +227,7 @@ router.get("/", async (req, res) => {
         supplies,
         edges,
       };
-      res.status(200).json({
+      return res.status(200).json({
         message: "supply track result",
         data: [result],
       });
