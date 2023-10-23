@@ -47,6 +47,7 @@ module.exports = async (start_node, x) => {
             x: x + x_offset + i * x_spacing,
             y: level * y_spacing,
           },
+          product,
           data: {
             label: `${product.productName} timestamp ${supply.timestamp}`,
           },
