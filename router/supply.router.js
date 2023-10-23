@@ -240,12 +240,22 @@ router.get("/", async (req, res) => {
     }
   }
   try {
-    const { page = 1, limit = 10 } = req.query;
-    const supplies = await Supply.find({ ...req.query })
+    const { page = 1, limit = 10, sort = -1 } = req.query;
+    const supplies_schema = await Supply.find()
       .limit(limit * 1)
       .skip((page - 1) * limit)
-      .sort({ createdAt: -1 });
+      .sort({ timestamp: sort * 1 });
     const count = await Supply.countDocuments();
+    const supplies = await Promise.all(
+      supplies_schema.map(async (supply) => {
+        return {
+          ...supply._doc,
+          product: product_deserializer(
+            await p_contract.methods.listOfProducts(supply.productId).call()
+          ),
+        };
+      })
+    );
     return res.status(200).json({
       message: `page ${page} of supply retrieved`,
       data: [
