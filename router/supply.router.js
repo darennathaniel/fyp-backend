@@ -153,11 +153,6 @@ router.post("/prerequisite", token_verification, async (req, res) => {
   }
 });
 
-router.get("/", async (req, res) => {
-  // TODO: get 1 supply using supply ID or get all supplies
-  // get it from Mongo DB
-});
-
 router.get("/product", async (req, res) => {
   if (!req.query.company_address)
     return res.status(400).json({
@@ -224,24 +219,44 @@ router.get("/prerequisite", async (req, res) => {
   }
 });
 
-router.get("/track", async (req, res) => {
-  if (!req.query.supply_id)
-    return res
-      .status(400)
-      .json({ message: "supply ID does not exist in body" });
+router.get("/", async (req, res) => {
+  if (req.query.supply_id) {
+    try {
+      const { supplies, edges } = await bfs(req.query.supply_id, 0);
+      const result = {
+        supplies,
+        edges,
+      };
+      res.status(200).json({
+        message: "supply track result",
+        data: [result],
+      });
+    } catch (err) {
+      if (err.name && err.name === "ContractExecutionError")
+        return res.status(400).json({ message: err.innerError.message });
+      return res.status(400).json({
+        message: err.message,
+      });
+    }
+  }
   try {
-    const { supplies, edges } = await bfs(req.query.supply_id, 0);
-    const result = {
-      supplies,
-      edges,
-    };
-    res.status(200).json({
-      message: "supply track result",
-      data: [result],
+    const { page = 1, limit = 10 } = req.query;
+    const supplies = await Supply.find({ ...req.query })
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .sort({ createdAt: -1 });
+    const count = await Supply.countDocuments();
+    return res.status(200).json({
+      message: `page ${page} of supply retrieved`,
+      data: [
+        {
+          supplies,
+          total_pages: Math.ceil(count / limit),
+          current_page: page,
+        },
+      ],
     });
   } catch (err) {
-    if (err.name && err.name === "ContractExecutionError")
-      return res.status(400).json({ message: err.innerError.message });
     return res.status(400).json({
       message: err.message,
     });
