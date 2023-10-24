@@ -40,7 +40,7 @@ router.get("/incoming", token_verification, async (req, res) => {
             .call()
         );
         return res.status(200).json({
-          message: "outgoing requests obtained",
+          message: "incoming requests obtained",
           data: [
             {
               id: filtered_request[0].id,
@@ -51,10 +51,24 @@ router.get("/incoming", token_verification, async (req, res) => {
             },
           ],
         });
+      } else {
+        const event = events_deserializer(
+          await sc_contract.getPastEvents("Requests", {
+            filter: {
+              requestId: req.query.request_id,
+              to: req.wallet_address,
+            },
+            fromBlock: 0,
+            toBlock: "latest",
+          })
+        );
+        if (event.length === 1) {
+          return res.status(200).json({
+            message: "incoming request obtained",
+            data: [event],
+          });
+        }
       }
-      return res.status(400).json({
-        message: "no such request in database",
-      });
     } catch (err) {
       return res.status(400).json({
         message: err.message,
@@ -84,7 +98,7 @@ router.get("/incoming", token_verification, async (req, res) => {
       );
       const past_requests = events_deserializer(
         await sc_contract.getPastEvents("Requests", {
-          to: req.wallet_address,
+          filter: { to: req.wallet_address },
           fromBlock: 0,
           toBlock: "latest",
         })
@@ -110,7 +124,7 @@ router.get("/incoming", token_verification, async (req, res) => {
       requests.push(
         ...events_deserializer(
           await sc_contract.getPastEvents("Requests", {
-            to: req.wallet_address,
+            filter: { to: req.wallet_address },
             fromBlock: 0,
             toBlock: "latest",
           })
@@ -144,7 +158,7 @@ router.get("/outgoing", token_verification, async (req, res) => {
             .call()
         );
         return res.status(200).json({
-          message: "outgoing requests obtained",
+          message: "outgoing request obtained",
           data: [
             {
               id: filtered_request[0].id,
@@ -155,6 +169,23 @@ router.get("/outgoing", token_verification, async (req, res) => {
             },
           ],
         });
+      } else {
+        const event = events_deserializer(
+          await sc_contract.getPastEvents("Requests", {
+            filter: {
+              requestId: req.query.request_id,
+              from: req.wallet_address,
+            },
+            fromBlock: 0,
+            toBlock: "latest",
+          })
+        );
+        if (event.length === 1) {
+          return res.status(200).json({
+            message: "outgoing request obtained",
+            data: [event],
+          });
+        }
       }
       return res.status(400).json({
         message: "no such contract in database",
@@ -169,20 +200,58 @@ router.get("/outgoing", token_verification, async (req, res) => {
     const company = company_deserializer(
       await sc_contract.methods.getCompany(req.wallet_address).call()
     );
-    const outgoing_contract = await Promise.all(
-      company.outgoingRequests.map(async (request) => {
-        const product = product_deserializer(
-          await p_contract.methods.listOfProducts(request.productId).call()
-        );
-        return {
-          id: request.id,
-          product,
-          from: request.from,
-          to: request.to,
-          quantity: request.quantity,
-        };
-      })
-    );
+    const { timeline = "all" } = req.query;
+    const requests = [];
+    if (timeline === "all") {
+      const outgoing_requests = await Promise.all(
+        company.outgoingRequests.map(async (request) => {
+          const product = product_deserializer(
+            await p_contract.methods.listOfProducts(request.productId).call()
+          );
+          return {
+            id: request.id,
+            product,
+            from: request.from,
+            to: request.to,
+            quantity: request.quantity,
+          };
+        })
+      );
+      const past_requests = events_deserializer(
+        await sc_contract.getPastEvents("Requests", {
+          filter: { from: req.wallet_address },
+          fromBlock: 0,
+          toBlock: "latest",
+        })
+      );
+      requests.push(...outgoing_requests, ...past_requests);
+    } else if (timeline === "current") {
+      const outgoing_requests = await Promise.all(
+        company.outgoingRequests.map(async (request) => {
+          const product = product_deserializer(
+            await p_contract.methods.listOfProducts(request.productId).call()
+          );
+          return {
+            id: request.id,
+            product,
+            from: request.from,
+            to: request.to,
+            quantity: request.quantity,
+          };
+        })
+      );
+      requests.push(...outgoing_requests);
+    } else if (timeline === "past") {
+      requests.push(
+        ...events_deserializer(
+          await sc_contract.getPastEvents("Requests", {
+            filter: { from: req.wallet_address },
+            fromBlock: 0,
+            toBlock: "latest",
+          })
+        )
+      );
+    }
     return res.status(200).json({
       message: "outgoing requests obtained",
       data: [outgoing_contract],
