@@ -252,7 +252,7 @@ router.get("/outgoing", token_verification, async (req, res) => {
       );
     }
     return res.status(200).json({
-      message: "incoming contracts obtained",
+      message: "outgoing contracts obtained",
       data: [contracts],
     });
   } catch (err) {
