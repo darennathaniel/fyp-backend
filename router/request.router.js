@@ -254,7 +254,7 @@ router.get("/outgoing", token_verification, async (req, res) => {
     }
     return res.status(200).json({
       message: "outgoing requests obtained",
-      data: [outgoing_contract],
+      data: [requests],
     });
   } catch (err) {
     return res.status(400).json({
@@ -337,17 +337,17 @@ router.post("/approve", token_verification, async (req, res) => {
     return res.status(403).json({
       message: "only to address are allowed to decline the contract",
     });
-  const supplies = supply_deserializer(
-    await sc_contract.methods
-      .getSupply(req.body.product_id)
-      .call({ from: req.wallet_address })
-  );
-  if (supplies.total < req.body.quantity)
-    return res.status(400).json({
-      message:
-        "supplier does not have enough stock to proceed with the request",
-    });
   try {
+    const supplies = supply_deserializer(
+      await sc_contract.methods
+        .getSupply(req.body.product_id)
+        .call({ from: req.wallet_address })
+    );
+    if (supplies.total < req.body.quantity)
+      return res.status(400).json({
+        message:
+          "supplier does not have enough stock to proceed with the request",
+      });
     let counter = req.body.quantity;
     let index = 0;
     const supply_ids = [];
