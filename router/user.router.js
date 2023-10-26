@@ -29,6 +29,11 @@ router.post("/login", async (req, res) => {
     const user = await User.findOne({
       username,
     });
+    if (!user) {
+      return res.status(404).json({
+        message: "credentials does not match",
+      });
+    }
     if (user.password === "zonk")
       return res.status(404).json({
         message: "account hasn't been created",
@@ -78,6 +83,11 @@ router.post("/register", async (req, res) => {
     const user = await User.findOne({
       username,
     });
+    if (!user) {
+      return res.status(404).json({
+        message: "user does not exist",
+      });
+    }
     if (user.password !== "zonk")
       return res.status(400).json({
         message: "user has been created",
