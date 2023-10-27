@@ -32,6 +32,10 @@ router.post("/", token_verification, async (req, res) => {
     return res.status(400).json({
       message: "username is not in body",
     });
+  if (!req.body.email)
+    return res.status(400).json({
+      message: "email is not in body",
+    });
   if (!req.owner)
     return res.status(403).json({
       message: "only network owners are allowed",
@@ -40,8 +44,10 @@ router.post("/", token_verification, async (req, res) => {
     await User.create({
       username: req.body.username,
       password: "zonk",
+      email: req.body.email,
       wallet_address: req.body.owner,
       is_owner: false,
+      display_name: req.body.company_name,
     });
     await sc_contract.methods
       .addCompany(req.body.owner, req.body.company_name)

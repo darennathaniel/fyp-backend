@@ -11,28 +11,39 @@ router.get("/", token_verification, async (req, res) => {
     username: req.username,
   });
   return res.status(200).json({
-    username: user.username,
-    wallet_address: user.wallet_address,
+    message: "user obtained",
+    data: [
+      {
+        username: user.username,
+        display_name: user.display_name,
+        email: user.email,
+        wallet_address: user.wallet_address,
+      },
+    ],
   });
 });
 router.post("/login", async (req, res) => {
-  if (!req.body.username)
+  if (!req.body.username_or_email)
     return res.status(400).json({
-      message: "username does not exist in the body",
+      message: "username or email does not exist in the body",
     });
   if (!req.body.password)
     return res.status(400).json({
       message: "password does not exist in the body",
     });
-  const { username, password } = req.body;
+  const { username_or_email, password } = req.body;
   try {
-    const user = await User.findOne({
-      username,
+    let user = await User.findOne({
+      username: username_or_email,
     });
     if (!user) {
-      return res.status(404).json({
-        message: "credentials does not match",
+      user = await User.findOne({
+        email: username_or_email,
       });
+      if (!user)
+        return res.status(404).json({
+          message: "credentials does not match",
+        });
     }
     if (user.password === "zonk")
       return res.status(404).json({
@@ -56,6 +67,14 @@ router.post("/login", async (req, res) => {
       .status(200)
       .json({
         message: "login successful",
+        data: [
+          {
+            username: user.username,
+            wallet_address: user.wallet_address,
+            display_name: user.display_name,
+            email: user.email,
+          },
+        ],
       });
   } catch (err) {
     return res.status(400).json({
@@ -63,10 +82,19 @@ router.post("/login", async (req, res) => {
     });
   }
 });
+router.post("/logout", async (req, res) => {
+  return res.clearCookie("Authorization").status(200).json({
+    message: "logout successful",
+  });
+});
 router.post("/register", async (req, res) => {
   if (!req.body.username)
     return res.status(400).json({
       message: "username does not exist in the body",
+    });
+  if (!req.body.email)
+    return res.status(400).json({
+      message: "email does not exist in body",
     });
   if (!req.body.password)
     return res.status(400).json({
@@ -76,7 +104,7 @@ router.post("/register", async (req, res) => {
     return res.status(400).json({
       message: "wallet address does not exist in the body",
     });
-  const { username, password, wallet_address } = req.body;
+  const { username, password, email, wallet_address } = req.body;
   const salt = await bcrypt.genSalt(10);
   const hashed_password = await bcrypt.hash(password, salt);
   try {
@@ -91,6 +119,10 @@ router.post("/register", async (req, res) => {
     if (user.password !== "zonk")
       return res.status(400).json({
         message: "user has been created",
+      });
+    if (user.email !== email)
+      return res.status(400).json({
+        message: "email does not match",
       });
     if (user.wallet_address !== wallet_address)
       return res.status(400).json({
@@ -111,7 +143,14 @@ router.post("/register", async (req, res) => {
       .status(200)
       .json({
         message: "user has been created",
-        data: [],
+        data: [
+          {
+            username: user.username,
+            wallet_address: user.wallet_address,
+            display_name: user.display_name,
+            email: user.email,
+          },
+        ],
       });
   } catch (err) {
     return res.status(400).json({

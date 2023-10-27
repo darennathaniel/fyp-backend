@@ -16,6 +16,11 @@ const user_schema = new Schema({
     unique: true,
     required: true,
   },
+  email: {
+    type: String,
+    unique: true,
+    required: true,
+  },
   password: {
     type: String,
     required: true,
@@ -27,6 +32,10 @@ const user_schema = new Schema({
   },
   is_owner: {
     type: Boolean,
+    required: true,
+  },
+  display_name: {
+    type: String,
     required: true,
   },
 });
