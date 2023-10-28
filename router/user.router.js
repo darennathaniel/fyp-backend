@@ -7,20 +7,46 @@ const dotenv = require("dotenv").config();
 const token_verification = require("../middleware/token_verification");
 
 router.get("/", token_verification, async (req, res) => {
-  const user = await User.findOne({
-    username: req.username,
-  });
-  return res.status(200).json({
-    message: "user obtained",
-    data: [
-      {
-        username: user.username,
-        display_name: user.display_name,
-        email: user.email,
-        wallet_address: user.wallet_address,
-      },
-    ],
-  });
+  try {
+    const user = await User.findOne({
+      username: req.username,
+    });
+    return res.status(200).json({
+      message: "user obtained",
+      data: [
+        {
+          username: user.username,
+          display_name: user.display_name,
+          email: user.email,
+          wallet_address: user.wallet_address,
+        },
+      ],
+    });
+  } catch (err) {
+    return res.status(400).json({
+      message: err.message,
+    });
+  }
+});
+router.get("/all", token_verification, async (req, res) => {
+  try {
+    const users = await User.find();
+    return res.status(200).json({
+      message: "obtained all users",
+      data: users
+        .filter((user) => !user.is_owner)
+        .map((user) => {
+          return {
+            username: user.username,
+            wallet_address: user.wallet_address,
+          };
+        }),
+    });
+  } catch (err) {
+    return res.status(400).json({
+      message: err.message,
+    });
+  }
 });
 router.post("/login", async (req, res) => {
   if (!req.body.username_or_email)
