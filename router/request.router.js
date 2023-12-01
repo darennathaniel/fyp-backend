@@ -377,7 +377,7 @@ router.post("/approve", token_verification, async (req, res) => {
       )
       .send({ from: req.wallet_address, gas: "6721975" });
     supply_schema.forEach((schema) => schema.save());
-    res.status(200).json({
+    return res.status(200).json({
       message: "contract has been approved",
       data: [],
     });
@@ -423,8 +423,130 @@ router.post("/decline", token_verification, async (req, res) => {
         quantity: req.body.quantity,
       })
       .send({ from: req.wallet_address, gas: "6721975" });
-    res.status(200).json({
+    return res.status(200).json({
       message: "request has been declined",
+      data: [],
+    });
+  } catch (err) {
+    return res.status(400).json({
+      message: err.message,
+    });
+  }
+});
+
+router.post("/delete", token_verification, async (req, res) => {
+  if (!req.body.product_id)
+    return res.status(400).json({
+      message: "product ID does not exist in body",
+    });
+  try {
+    const id = parseInt(crypto.randomBytes(2).toString("hex"), 16);
+    await sc_contract.methods
+      .sendDeleteRequest(id, req.body.product_id)
+      .send({ from: req.wallet_address, gas: "6721975" });
+    return res.status(200).json({
+      data: [],
+      message: "delete supply request has been sent",
+    });
+  } catch (err) {
+    return res.status(400).json({
+      message: err.message,
+    });
+  }
+});
+
+router.post("/delete/approve", token_verification, async (req, res) => {
+  if (!req.body.id)
+    return res.status(400).json({
+      message: "delete request ID does not exist in body",
+    });
+  if (!req.body.product_id)
+    return res.status(400).json({
+      message: "product ID does not exist in body",
+    });
+  if (!req.body.from)
+    return res.status(400).json({
+      message: "from address does not exist in body",
+    });
+  try {
+    await sc_contract.methods
+      .respondDeleteRequest(
+        req.body.id,
+        req.body.product_id,
+        req.body.from,
+        true
+      )
+      .send({
+        from: req.wallet_address,
+        gas: "6721975",
+      });
+    return res.status(200).json({
+      data: [],
+      message: "successfully approved the delete supply request",
+    });
+  } catch (err) {
+    return res.status(400).json({
+      message: err.message,
+    });
+  }
+});
+
+router.post("/delete/decline", async (req, res) => {
+  if (!req.body.id)
+    return res.status(400).json({
+      message: "delete request ID does not exist in body",
+    });
+  if (!req.body.product_id)
+    return res.status(400).json({
+      message: "product ID does not exist in body",
+    });
+  if (!req.body.from)
+    return res.status(400).json({
+      message: "from address does not exist in body",
+    });
+  try {
+    await sc_contract.methods
+      .respondDeleteRequest(
+        req.body.id,
+        req.body.product_id,
+        req.body.from,
+        false
+      )
+      .send({
+        from: req.wallet_address,
+        gas: "6721975",
+      });
+    return res.status(200).json({
+      data: [],
+      message: "successfully declined the delete supply request",
+    });
+  } catch (err) {
+    return res.status(400).json({
+      message: err.message,
+    });
+  }
+});
+
+router.delete("/delete", token_verification, async (req, res) => {
+  if (!req.query.id)
+    return res.status(400).json({
+      message: "delete request ID does not exist in body",
+    });
+  try {
+    const company = company_deserializer(
+      await sc_contract.methods.getCompany(req.wallet_address).call()
+    );
+    const request = company.outgoingDeleteRequests.filter(
+      (request) => request.id === req.query.id
+    );
+    const filter_upstream = company.upstream.filter(
+      (upstream) => upstream.productId !== request.productId
+    );
+    await sc_contract.methods
+      .deleteSupply(req.query.id, filter_upstream)
+      .send({ from: req.wallet_address, gas: "6721975" });
+    return res.status(200).json({
+      message: "product has been deleted from supply list",
       data: [],
     });
   } catch (err) {
