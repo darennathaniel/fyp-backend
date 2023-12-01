@@ -3,6 +3,7 @@ const router = express.Router();
 const token_verification = require("../middleware/token_verification");
 const User = require("../schema/User.model");
 const bfs = require("../utils/bfs_company");
+const company_deserializer = require("../utils/company_deserializer");
 
 const { Web3 } = require("web3");
 const supplyChainNetwork = require("../SupplyChainNetwork.json");
@@ -41,6 +42,12 @@ router.post("/", token_verification, async (req, res) => {
       message: "only network owners are allowed",
     });
   try {
+    await sc_contract.methods
+      .addCompany(req.body.owner, req.body.company_name)
+      .send({ from: req.wallet_address, gas: "6721975" });
+    await p_contract.methods
+      .addCompany(req.body.owner)
+      .send({ from: req.wallet_address, gas: "6721975" });
     await User.create({
       username: req.body.username,
       password: "zonk",
@@ -49,13 +56,9 @@ router.post("/", token_verification, async (req, res) => {
       is_owner: false,
       display_name: req.body.company_name,
     });
-    await sc_contract.methods
-      .addCompany(req.body.owner, req.body.company_name)
-      .send({ from: req.wallet_address, gas: "6721975" });
-    await p_contract.methods
-      .addCompany(req.body.owner)
-      .send({ from: req.wallet_address, gas: "6721975" });
-    const company = await sc_contract.methods.getCompany(req.body.owner).call();
+    const company = company_deserializer(
+      await sc_contract.methods.getCompany(req.body.owner).call()
+    );
     return res.status(200).json({
       message: "company created",
       data: [company],
