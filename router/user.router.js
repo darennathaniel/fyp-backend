@@ -6,6 +6,17 @@ const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv").config();
 const token_verification = require("../middleware/token_verification");
 
+const { Web3 } = require("web3");
+const supplyChainNetwork = require("../SupplyChainNetwork.json");
+const productContract = require("../ProductContract.json");
+const url = "http://127.0.0.1:7545";
+const provider = new Web3.providers.HttpProvider(url);
+const web3 = new Web3(provider);
+const sc_contract = new web3.eth.Contract(
+  supplyChainNetwork.abi,
+  supplyChainNetwork.networks[5777].address
+);
+
 router.get("/", token_verification, async (req, res) => {
   try {
     const user = await User.findOne({
@@ -16,11 +27,39 @@ router.get("/", token_verification, async (req, res) => {
       data: [
         {
           username: user.username,
-          display_name: user.display_name,
+          company_name: user.display_name,
           email: user.email,
           wallet_address: user.wallet_address,
         },
       ],
+    });
+  } catch (err) {
+    return res.status(400).json({
+      message: err.message,
+    });
+  }
+});
+router.get("/info", token_verification, async (req, res) => {
+  try {
+    const user = await User.findOne({
+      username: req.username,
+    });
+    const company = await sc_contract.methods
+      .getCompany(req.wallet_address)
+      .call();
+    const response = {
+      company_name: user.display_name,
+      username: user.username,
+      email: user.email,
+      wallet_address: user.wallet_address,
+      upstream: company.upstream.length,
+      downstream: company.downstream.length,
+      supply: company.listOfSupply.length,
+      prerequisite: company.listOfPrerequisites.length,
+    };
+    return res.status(200).json({
+      data: [response],
+      message: "successfully obtained full info of data",
     });
   } catch (err) {
     return res.status(400).json({
