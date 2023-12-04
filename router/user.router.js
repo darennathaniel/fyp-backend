@@ -22,28 +22,6 @@ router.get("/", token_verification, async (req, res) => {
     const user = await User.findOne({
       username: req.username,
     });
-    return res.status(200).json({
-      message: "user obtained",
-      data: [
-        {
-          username: user.username,
-          company_name: user.display_name,
-          email: user.email,
-          wallet_address: user.wallet_address,
-        },
-      ],
-    });
-  } catch (err) {
-    return res.status(400).json({
-      message: err.message,
-    });
-  }
-});
-router.get("/info", token_verification, async (req, res) => {
-  try {
-    const user = await User.findOne({
-      username: req.username,
-    });
     const company = await sc_contract.methods
       .getCompany(req.wallet_address)
       .call();
@@ -136,7 +114,7 @@ router.post("/login", async (req, res) => {
           {
             username: user.username,
             wallet_address: user.wallet_address,
-            display_name: user.display_name,
+            company_name: user.display_name,
             email: user.email,
           },
         ],
@@ -212,7 +190,7 @@ router.post("/register", async (req, res) => {
           {
             username: user.username,
             wallet_address: user.wallet_address,
-            display_name: user.display_name,
+            company_name: user.display_name,
             email: user.email,
           },
         ],
