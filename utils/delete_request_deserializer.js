@@ -5,5 +5,6 @@ module.exports = (delete_request) => {
     productId: Number(delete_request.productId),
     approvals: delete_request.approvals,
     rejected: delete_request.rejected,
+    code: delete_request.code,
   };
 };

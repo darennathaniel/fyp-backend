@@ -1,7 +1,7 @@
 const company_product_deserializer = require("./company_product_deserializer");
 const company_contract_deserializer = require("./company_contract_deserializer");
 const request_deserializer = require("./request_deserializer");
-const delete_request_deserializer = require("./delete_request_deserializer");
+const delete_request_deserializer = require("./delete_request_deserializer_company");
 
 module.exports = (company) => {
   return {
@@ -27,15 +27,8 @@ module.exports = (company) => {
     outgoingContract: company.outgoingContract.map((contract) => {
       return company_contract_deserializer(contract);
     }),
-    incomingDeleteRequests: company.incomingDeleteRequests.map(
-      (delete_request) => {
-        return delete_request_deserializer(delete_request);
-      }
-    ),
-    outgoingDeleteRequests: company.outgoingDeleteRequests.map(
-      (delete_request) => {
-        return delete_request_deserializer(delete_request);
-      }
-    ),
+    deleteRequest: company.deleteRequest.map((request) => {
+      return delete_request_deserializer(request);
+    }),
   };
 };

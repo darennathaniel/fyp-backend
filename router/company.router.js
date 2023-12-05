@@ -42,20 +42,20 @@ router.post("/", token_verification, async (req, res) => {
       message: "only network owners are allowed",
     });
   try {
-    await sc_contract.methods
-      .addCompany(req.body.owner, req.body.company_name)
-      .send({ from: req.wallet_address, gas: "6721975" });
-    await p_contract.methods
-      .addCompany(req.body.owner)
-      .send({ from: req.wallet_address, gas: "6721975" });
     await User.create({
       username: req.body.username,
       password: "zonk",
       email: req.body.email,
       wallet_address: req.body.owner,
       is_owner: false,
-      display_name: req.body.company_name,
+      company_name: req.body.company_name,
     });
+    await sc_contract.methods
+      .addCompany(req.body.owner, req.body.company_name)
+      .send({ from: req.wallet_address, gas: "6721975" });
+    await p_contract.methods
+      .addCompany(req.body.owner)
+      .send({ from: req.wallet_address, gas: "6721975" });
     const company = company_deserializer(
       await sc_contract.methods.getCompany(req.body.owner).call()
     );
