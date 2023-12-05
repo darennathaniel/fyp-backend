@@ -8,7 +8,6 @@ const token_verification = require("../middleware/token_verification");
 
 const { Web3 } = require("web3");
 const supplyChainNetwork = require("../SupplyChainNetwork.json");
-const productContract = require("../ProductContract.json");
 const url = "http://127.0.0.1:7545";
 const provider = new Web3.providers.HttpProvider(url);
 const web3 = new Web3(provider);
@@ -26,9 +25,10 @@ router.get("/", token_verification, async (req, res) => {
       .getCompany(req.wallet_address)
       .call();
     const response = {
-      company_name: user.display_name,
+      company_name: user.company_name,
       username: user.username,
       email: user.email,
+      is_owner: user.is_owner,
       wallet_address: user.wallet_address,
       upstream: company.upstream.length,
       downstream: company.downstream.length,
@@ -114,8 +114,9 @@ router.post("/login", async (req, res) => {
           {
             username: user.username,
             wallet_address: user.wallet_address,
-            company_name: user.display_name,
+            company_name: user.company_name,
             email: user.email,
+            is_owner: user.is_owner,
           },
         ],
       });
@@ -190,7 +191,7 @@ router.post("/register", async (req, res) => {
           {
             username: user.username,
             wallet_address: user.wallet_address,
-            company_name: user.display_name,
+            company_name: user.company_name,
             email: user.email,
           },
         ],

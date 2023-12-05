@@ -34,7 +34,7 @@ const user_schema = new Schema({
     type: Boolean,
     required: true,
   },
-  display_name: {
+  company_name: {
     type: String,
     required: true,
   },
