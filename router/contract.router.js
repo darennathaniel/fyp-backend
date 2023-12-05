@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const crypto = require("crypto");
+const User = require("../schema/User.model");
 
 const token_verification = require("../middleware/token_verification");
 const company_deserializer = require("../utils/company_deserializer");
@@ -37,13 +38,16 @@ router.get("/incoming", token_verification, async (req, res) => {
             .listOfProducts(filtered_contract[0].productId)
             .call()
         );
+        const from_company = await User.findOne({
+          wallet_address: filtered_contract[0].from,
+        });
         return res.status(200).json({
           message: "outgoing contracts obtained",
           data: [
             {
               id: filtered_contract[0].id,
               product,
-              from: filtered_contract[0].from,
+              from: from_company,
               to: filtered_contract[0].to,
             },
           ],
@@ -87,12 +91,14 @@ router.get("/incoming", token_verification, async (req, res) => {
           const product = product_deserializer(
             await p_contract.methods.listOfProducts(request.productId).call()
           );
+          const from_company = await User.findOne({
+            wallet_address: request.from,
+          });
           return {
             id: request.id,
             product,
-            from: request.from,
+            from: from_company,
             to: request.to,
-            quantity: request.quantity,
           };
         })
       );
@@ -110,12 +116,14 @@ router.get("/incoming", token_verification, async (req, res) => {
           const product = product_deserializer(
             await p_contract.methods.listOfProducts(request.productId).call()
           );
+          const from_company = await User.findOne({
+            wallet_address: request.from,
+          });
           return {
             id: request.id,
             product,
-            from: request.from,
+            from: from_company,
             to: request.to,
-            quantity: request.quantity,
           };
         })
       );
@@ -157,6 +165,9 @@ router.get("/outgoing", token_verification, async (req, res) => {
             .listOfProducts(filtered_contract[0].productId)
             .call()
         );
+        const to_company = await User.findOne({
+          wallet_address: request.to,
+        });
         return res.status(200).json({
           message: "outgoing contracts obtained",
           data: [
@@ -164,7 +175,7 @@ router.get("/outgoing", token_verification, async (req, res) => {
               id: filtered_contract[0].id,
               product,
               from: filtered_contract[0].from,
-              to: filtered_contract[0].to,
+              to: to_company,
             },
           ],
         });
@@ -207,12 +218,14 @@ router.get("/outgoing", token_verification, async (req, res) => {
           const product = product_deserializer(
             await p_contract.methods.listOfProducts(request.productId).call()
           );
+          const to_company = await User.findOne({
+            wallet_address: request.to,
+          });
           return {
             id: request.id,
             product,
             from: request.from,
-            to: request.to,
-            quantity: request.quantity,
+            to: to_company,
           };
         })
       );
@@ -230,12 +243,14 @@ router.get("/outgoing", token_verification, async (req, res) => {
           const product = product_deserializer(
             await p_contract.methods.listOfProducts(request.productId).call()
           );
+          const to_company = await User.findOne({
+            wallet_address: request.to,
+          });
           return {
             id: request.id,
             product,
             from: request.from,
-            to: request.to,
-            quantity: request.quantity,
+            to: to_company,
           };
         })
       );
