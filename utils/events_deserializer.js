@@ -3,6 +3,7 @@ module.exports = (events) => {
     const event = data.returnValues;
     return {
       requestId: Number(event.requestId),
+      contractId: Number(event.contractId),
       from: event.from,
       to: event.to,
       productId: Number(event.productId),
