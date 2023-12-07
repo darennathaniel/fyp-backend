@@ -62,7 +62,9 @@ module.exports = async (start_node, x) => {
         },
         data: {
           label: current_company.name,
+          meta: current_company,
         },
+        type: "customNode",
       });
 
       const neighbors = current_company.downstream;
@@ -90,6 +92,8 @@ module.exports = async (start_node, x) => {
             source: current_company_address,
             target: neighbor,
             label: product.productName,
+            sourceHandle: "top",
+            targetHandle: "bottom",
           });
         }
         if (!visited[neighbor]) {
