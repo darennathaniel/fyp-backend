@@ -64,9 +64,32 @@ router.get("/incoming", token_verification, async (req, res) => {
           })
         );
         if (event.length === 1) {
+          const detailed_past_contracts = await Promise.all(
+            event.map(async (contract) => {
+              const from_company = await User.findOne({
+                wallet_address: contract.from,
+              });
+              const to_company = await User.findOne({
+                wallet_address: contract.to,
+              });
+              const product = product_deserializer(
+                await p_contract.methods
+                  .listOfProducts(contract.productId)
+                  .call()
+              );
+              return {
+                ...contract,
+                id: contract.contractId,
+                from: from_company,
+                to: to_company,
+                product,
+                timestamp: contract.timestamp,
+              };
+            })
+          );
           return res.status(200).json({
             message: "incoming contract obtained",
-            data: [event],
+            data: [detailed_past_contracts],
           });
         }
       }
@@ -109,7 +132,28 @@ router.get("/incoming", token_verification, async (req, res) => {
           toBlock: "latest",
         })
       );
-      contracts.push(...incoming_contract, ...past_contracts);
+      const detailed_past_contracts = await Promise.all(
+        past_contracts.map(async (contract) => {
+          const from_company = await User.findOne({
+            wallet_address: contract.from,
+          });
+          const to_company = await User.findOne({
+            wallet_address: contract.to,
+          });
+          const product = product_deserializer(
+            await p_contract.methods.listOfProducts(contract.productId).call()
+          );
+          return {
+            ...contract,
+            id: contract.contractId,
+            from: from_company,
+            to: to_company,
+            product,
+            timestamp: contract.timestamp,
+          };
+        })
+      );
+      contracts.push(...incoming_contract, ...detailed_past_contracts);
     } else if (timeline === "current") {
       const incoming_contract = await Promise.all(
         company.incomingContract.map(async (request) => {
@@ -129,15 +173,35 @@ router.get("/incoming", token_verification, async (req, res) => {
       );
       contracts.push(...incoming_contract);
     } else if (timeline === "past") {
-      contracts.push(
-        ...events_deserializer(
-          await sc_contract.getPastEvents("Contracts", {
-            filter: { to: req.wallet_address },
-            fromBlock: 0,
-            toBlock: "latest",
-          })
-        )
+      const past_contracts = events_deserializer(
+        await sc_contract.getPastEvents("Contracts", {
+          filter: { to: req.wallet_address },
+          fromBlock: 0,
+          toBlock: "latest",
+        })
       );
+      const detailed_past_contracts = await Promise.all(
+        past_contracts.map(async (contract) => {
+          const from_company = await User.findOne({
+            wallet_address: contract.from,
+          });
+          const to_company = await User.findOne({
+            wallet_address: contract.to,
+          });
+          const product = product_deserializer(
+            await p_contract.methods.listOfProducts(contract.productId).call()
+          );
+          return {
+            ...contract,
+            id: contract.contractId,
+            from: from_company,
+            to: to_company,
+            product,
+            timestamp: contract.timestamp,
+          };
+        })
+      );
+      contracts.push(...detailed_past_contracts);
     }
     return res.status(200).json({
       message: "incoming contracts obtained",
@@ -191,9 +255,32 @@ router.get("/outgoing", token_verification, async (req, res) => {
           })
         );
         if (event.length === 1) {
+          const detailed_past_contracts = await Promise.all(
+            event.map(async (contract) => {
+              const from_company = await User.findOne({
+                wallet_address: contract.from,
+              });
+              const to_company = await User.findOne({
+                wallet_address: contract.to,
+              });
+              const product = product_deserializer(
+                await p_contract.methods
+                  .listOfProducts(contract.productId)
+                  .call()
+              );
+              return {
+                ...contract,
+                id: contract.contractId,
+                from: from_company,
+                to: to_company,
+                product,
+                timestamp: contract.timestamp,
+              };
+            })
+          );
           return res.status(200).json({
             message: "outgoing contract obtained",
-            data: [event],
+            data: [detailed_past_contracts],
           });
         }
       }
@@ -236,7 +323,28 @@ router.get("/outgoing", token_verification, async (req, res) => {
           toBlock: "latest",
         })
       );
-      contracts.push(...outgoing_contract, ...past_contracts);
+      const detailed_past_contracts = await Promise.all(
+        past_contracts.map(async (contract) => {
+          const from_company = await User.findOne({
+            wallet_address: contract.from,
+          });
+          const to_company = await User.findOne({
+            wallet_address: contract.to,
+          });
+          const product = product_deserializer(
+            await p_contract.methods.listOfProducts(contract.productId).call()
+          );
+          return {
+            ...contract,
+            id: contract.contractId,
+            from: from_company,
+            to: to_company,
+            product,
+            timestamp: contract.timestamp,
+          };
+        })
+      );
+      contracts.push(...outgoing_contract, ...detailed_past_contracts);
     } else if (timeline === "current") {
       const outgoing_contract = await Promise.all(
         company.outgoingContract.map(async (request) => {
@@ -256,15 +364,35 @@ router.get("/outgoing", token_verification, async (req, res) => {
       );
       contracts.push(...outgoing_contract);
     } else if (timeline === "past") {
-      contracts.push(
-        ...events_deserializer(
-          await sc_contract.getPastEvents("contracts", {
-            filter: { from: req.wallet_address },
-            fromBlock: 0,
-            toBlock: "latest",
-          })
-        )
+      const past_contracts = events_deserializer(
+        await sc_contract.getPastEvents("Contracts", {
+          filter: { from: req.wallet_address },
+          fromBlock: 0,
+          toBlock: "latest",
+        })
       );
+      const detailed_past_contracts = await Promise.all(
+        past_contracts.map(async (contract) => {
+          const from_company = await User.findOne({
+            wallet_address: contract.from,
+          });
+          const to_company = await User.findOne({
+            wallet_address: contract.to,
+          });
+          const product = product_deserializer(
+            await p_contract.methods.listOfProducts(contract.productId).call()
+          );
+          return {
+            ...contract,
+            id: contract.contractId,
+            from: from_company,
+            to: to_company,
+            product,
+            timestamp: contract.timestamp,
+          };
+        })
+      );
+      contracts.push(...detailed_past_contracts);
     }
     return res.status(200).json({
       message: "outgoing contracts obtained",
