@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const Supply = require("../schema/Supply.model");
+const User = require("../schema/User.model");
 const token_verification = require("../middleware/token_verification");
 const supply_deserializer = require("../utils/supply_deserializer");
 const company_deserializer = require("../utils/company_deserializer");
@@ -39,13 +40,16 @@ router.get("/incoming", token_verification, async (req, res) => {
             .listOfProducts(filtered_request[0].productId)
             .call()
         );
+        const from_company = await User.findOne({
+          wallet_address: filtered_request[0].from,
+        });
         return res.status(200).json({
           message: "incoming requests obtained",
           data: [
             {
               id: filtered_request[0].id,
               product,
-              from: filtered_request[0].from,
+              from: from_company,
               to: filtered_request[0].to,
               quantity: filtered_request[0].quantity,
             },
@@ -63,9 +67,32 @@ router.get("/incoming", token_verification, async (req, res) => {
           })
         );
         if (event.length === 1) {
+          const detailed_past_requests = await Promise.all(
+            event.map(async (request) => {
+              const from_company = await User.findOne({
+                wallet_address: request.from,
+              });
+              const to_company = await User.findOne({
+                wallet_address: request.to,
+              });
+              const product = product_deserializer(
+                await p_contract.methods
+                  .listOfProducts(request.productId)
+                  .call()
+              );
+              return {
+                ...request,
+                id: request.requestId,
+                from: from_company,
+                to: to_company,
+                product,
+                timestamp: request.timestamp,
+              };
+            })
+          );
           return res.status(200).json({
             message: "incoming request obtained",
-            data: [event],
+            data: [detailed_past_requests],
           });
         }
       }
@@ -87,10 +114,13 @@ router.get("/incoming", token_verification, async (req, res) => {
           const product = product_deserializer(
             await p_contract.methods.listOfProducts(request.productId).call()
           );
+          const from_company = await User.findOne({
+            wallet_address: request.from,
+          });
           return {
             id: request.id,
             product,
-            from: request.from,
+            from: from_company,
             to: request.to,
             quantity: request.quantity,
           };
@@ -103,17 +133,41 @@ router.get("/incoming", token_verification, async (req, res) => {
           toBlock: "latest",
         })
       );
-      requests.push(...incoming_requests, ...past_requests);
+      const detailed_past_requests = await Promise.all(
+        past_requests.map(async (request) => {
+          const from_company = await User.findOne({
+            wallet_address: request.from,
+          });
+          const to_company = await User.findOne({
+            wallet_address: request.to,
+          });
+          const product = product_deserializer(
+            await p_contract.methods.listOfProducts(request.productId).call()
+          );
+          return {
+            ...request,
+            id: request.requestId,
+            from: from_company,
+            to: to_company,
+            product,
+            timestamp: request.timestamp,
+          };
+        })
+      );
+      requests.push(...incoming_requests, ...detailed_past_requests);
     } else if (timeline === "current") {
       const incoming_requests = await Promise.all(
         company.incomingRequests.map(async (request) => {
           const product = product_deserializer(
             await p_contract.methods.listOfProducts(request.productId).call()
           );
+          const from_company = await User.findOne({
+            wallet_address: request.from,
+          });
           return {
             id: request.id,
             product,
-            from: request.from,
+            from: from_company,
             to: request.to,
             quantity: request.quantity,
           };
@@ -121,15 +175,35 @@ router.get("/incoming", token_verification, async (req, res) => {
       );
       requests.push(...incoming_requests);
     } else if (timeline === "past") {
-      requests.push(
-        ...events_deserializer(
-          await sc_contract.getPastEvents("Requests", {
-            filter: { to: req.wallet_address },
-            fromBlock: 0,
-            toBlock: "latest",
-          })
-        )
+      const past_requests = events_deserializer(
+        await sc_contract.getPastEvents("Requests", {
+          filter: { to: req.wallet_address },
+          fromBlock: 0,
+          toBlock: "latest",
+        })
       );
+      const detailed_past_requests = await Promise.all(
+        past_requests.map(async (request) => {
+          const from_company = await User.findOne({
+            wallet_address: request.from,
+          });
+          const to_company = await User.findOne({
+            wallet_address: request.to,
+          });
+          const product = product_deserializer(
+            await p_contract.methods.listOfProducts(request.productId).call()
+          );
+          return {
+            ...request,
+            id: request.requestId,
+            from: from_company,
+            to: to_company,
+            product,
+            timestamp: request.timestamp,
+          };
+        })
+      );
+      requests.push(...detailed_past_requests);
     }
     return res.status(200).json({
       message: "incoming requests obtained",
@@ -157,6 +231,9 @@ router.get("/outgoing", token_verification, async (req, res) => {
             .listOfProducts(filtered_request[0].productId)
             .call()
         );
+        const to_company = await User.findOne({
+          wallet_address: filtered_request[0].to,
+        });
         return res.status(200).json({
           message: "outgoing request obtained",
           data: [
@@ -164,7 +241,7 @@ router.get("/outgoing", token_verification, async (req, res) => {
               id: filtered_request[0].id,
               product,
               from: filtered_request[0].from,
-              to: filtered_request[0].to,
+              to: to_company,
               quantity: filtered_request[0].quantity,
             },
           ],
@@ -181,14 +258,37 @@ router.get("/outgoing", token_verification, async (req, res) => {
           })
         );
         if (event.length === 1) {
+          const detailed_past_requests = await Promise.all(
+            event.map(async (request) => {
+              const from_company = await User.findOne({
+                wallet_address: request.from,
+              });
+              const to_company = await User.findOne({
+                wallet_address: request.to,
+              });
+              const product = product_deserializer(
+                await p_contract.methods
+                  .listOfProducts(request.productId)
+                  .call()
+              );
+              return {
+                ...request,
+                id: request.requestId,
+                from: from_company,
+                to: to_company,
+                product,
+                timestamp: request.timestamp,
+              };
+            })
+          );
           return res.status(200).json({
             message: "outgoing request obtained",
-            data: [event],
+            data: [detailed_past_requests],
           });
         }
       }
       return res.status(400).json({
-        message: "no such contract in database",
+        message: "no such request in database",
       });
     } catch (err) {
       return res.status(400).json({
@@ -208,11 +308,14 @@ router.get("/outgoing", token_verification, async (req, res) => {
           const product = product_deserializer(
             await p_contract.methods.listOfProducts(request.productId).call()
           );
+          const to_company = User.findOne({
+            wallet_address: request.to,
+          });
           return {
             id: request.id,
             product,
             from: request.from,
-            to: request.to,
+            to: to_company,
             quantity: request.quantity,
           };
         })
@@ -224,33 +327,77 @@ router.get("/outgoing", token_verification, async (req, res) => {
           toBlock: "latest",
         })
       );
-      requests.push(...outgoing_requests, ...past_requests);
+      const detailed_past_requests = await Promise.all(
+        past_requests.map(async (request) => {
+          const from_company = await User.findOne({
+            wallet_address: request.from,
+          });
+          const to_company = await User.findOne({
+            wallet_address: request.to,
+          });
+          const product = product_deserializer(
+            await p_contract.methods.listOfProducts(request.productId).call()
+          );
+          return {
+            ...request,
+            id: request.requestId,
+            from: from_company,
+            to: to_company,
+            product,
+            timestamp: request.timestamp,
+          };
+        })
+      );
+      requests.push(...outgoing_requests, ...detailed_past_requests);
     } else if (timeline === "current") {
       const outgoing_requests = await Promise.all(
         company.outgoingRequests.map(async (request) => {
           const product = product_deserializer(
             await p_contract.methods.listOfProducts(request.productId).call()
           );
+          const to_company = await User.findOne({
+            wallet_address: request.to,
+          });
           return {
             id: request.id,
             product,
             from: request.from,
-            to: request.to,
+            to: to_company,
             quantity: request.quantity,
           };
         })
       );
       requests.push(...outgoing_requests);
     } else if (timeline === "past") {
-      requests.push(
-        ...events_deserializer(
-          await sc_contract.getPastEvents("Requests", {
-            filter: { from: req.wallet_address },
-            fromBlock: 0,
-            toBlock: "latest",
-          })
-        )
+      const past_requests = events_deserializer(
+        await sc_contract.getPastEvents("Requests", {
+          filter: { from: req.wallet_address },
+          fromBlock: 0,
+          toBlock: "latest",
+        })
       );
+      const detailed_past_requests = await Promise.all(
+        past_requests.map(async (request) => {
+          const from_company = await User.findOne({
+            wallet_address: request.from,
+          });
+          const to_company = await User.findOne({
+            wallet_address: request.to,
+          });
+          const product = product_deserializer(
+            await p_contract.methods.listOfProducts(request.productId).call()
+          );
+          return {
+            ...request,
+            id: request.requestId,
+            from: from_company,
+            to: to_company,
+            product,
+            timestamp: request.timestamp,
+          };
+        })
+      );
+      requests.push(...detailed_past_requests);
     }
     return res.status(200).json({
       message: "outgoing requests obtained",
@@ -278,7 +425,7 @@ router.post("/", token_verification, async (req, res) => {
     });
   if (req.body.to === req.wallet_address)
     return res.status(400).json({
-      message: "cannot send contract to self",
+      message: "cannot send request to self",
     });
   const downstream = company_deserializer(
     await sc_contract.methods.getCompany(req.wallet_address).call()
@@ -288,7 +435,7 @@ router.post("/", token_verification, async (req, res) => {
     0
   )
     return res.status(400).json({
-      message: `you have no contract with company ${req.body.to}`,
+      message: `you have no request with company ${req.body.to}`,
     });
   const id = parseInt(crypto.randomBytes(2).toString("hex"), 16);
   try {
@@ -335,7 +482,7 @@ router.post("/approve", token_verification, async (req, res) => {
     });
   if (req.body.to !== req.wallet_address)
     return res.status(403).json({
-      message: "only to address are allowed to decline the contract",
+      message: "only to address are allowed to decline the request",
     });
   try {
     const supplies = supply_deserializer(
@@ -378,10 +525,12 @@ router.post("/approve", token_verification, async (req, res) => {
       .send({ from: req.wallet_address, gas: "6721975" });
     supply_schema.forEach((schema) => schema.save());
     return res.status(200).json({
-      message: "contract has been approved",
+      message: "request has been approved",
       data: [],
     });
   } catch (err) {
+    if (err.name && err.name === "ContractExecutionError")
+      return res.status(400).json({ message: err.innerError.message });
     return res.status(400).json({
       message: err.message,
     });
@@ -411,7 +560,7 @@ router.post("/decline", token_verification, async (req, res) => {
     });
   if (req.body.to !== req.wallet_address)
     return res.status(403).json({
-      message: "only to address are allowed to decline the contract",
+      message: "only to address are allowed to decline the request",
     });
   try {
     await sc_contract.methods
