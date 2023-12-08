@@ -17,7 +17,7 @@ const crypto = require("crypto");
 const company_deserializer = require("./company_deserializer");
 const product_deserializer = require("./product_deserializer");
 
-module.exports = async (start_node, x) => {
+module.exports = async (start_node, x, custom) => {
   const visited = {}; // To keep track of visited nodes
   let queue = []; // Queue for BFS traversal
   const x_spacing = 200;
@@ -64,7 +64,7 @@ module.exports = async (start_node, x) => {
           label: current_company.name,
           meta: current_company,
         },
-        type: "customNode",
+        type: custom ? "customNode" : "default",
       });
 
       const neighbors = current_company.downstream;

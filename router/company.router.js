@@ -81,7 +81,11 @@ router.get("/", async (req, res) => {
         return res.status(404).json({
           message: "company does not exist",
         });
-      const { companies, edges } = await bfs(req.query.company_address, 0);
+      const { companies, edges } = await bfs(
+        req.query.company_address,
+        0,
+        false
+      );
       return res.status(200).json({
         message: "company obtained",
         data: [companies[0], { companies: companies, edges }],
@@ -104,7 +108,7 @@ router.get("/", async (req, res) => {
     let x = 0;
     const x_offset = 400;
     for (let i = 0; i < head_companies_length; i++) {
-      const { companies, edges } = await bfs(head_companies[i].owner, x);
+      const { companies, edges } = await bfs(head_companies[i].owner, x, true);
       result.companies.push(...companies);
       result.edges.push(...edges);
       x += x_offset;
