@@ -4,11 +4,13 @@ const crypto = require("crypto");
 
 const token_verification = require("../middleware/token_verification");
 const product_deserializer = require("../utils/product_deserializer");
+const supply_deserializer = require("../utils/supply_deserializer");
+const company_deserializer = require("../utils/company_deserializer");
+const User = require("../schema/User.model");
 
 const { Web3 } = require("web3");
 const supplyChainNetwork = require("../SupplyChainNetwork.json");
 const productContract = require("../ProductContract.json");
-const company_deserializer = require("../utils/company_deserializer");
 const url = "http://127.0.0.1:7545";
 const provider = new Web3.providers.HttpProvider(url);
 const web3 = new Web3(provider);
@@ -31,7 +33,7 @@ router.get("/", async (req, res) => {
       const all_company_length = await p_contract.methods
         .getProductOwnerLength(product_id)
         .call();
-      let companies = [];
+      const companies = [];
       for (let i = 0; i < all_company_length; i++) {
         const company_address = await p_contract.methods
           .productOwners(product_id, i)
@@ -54,11 +56,51 @@ router.get("/", async (req, res) => {
       });
     }
   }
+  if (req.query.company_address) {
+    try {
+      const company = company_deserializer(
+        await sc_contract.methods.getCompany(req.query.company_address).call()
+      );
+      const response = await Promise.all(
+        company.listOfSupply.map(async (product_id) => {
+          const product = product_deserializer(
+            await p_contract.methods.listOfProducts(product_id).call()
+          );
+          let supply;
+          try {
+            supply = supply_deserializer(
+              await sc_contract.methods
+                .getSupply(product_id)
+                .call({ from: req.query.company_address })
+            );
+          } catch (err) {
+            supply = {
+              total: 0,
+              supplyId: [],
+              quantities: [],
+            };
+          }
+          return {
+            ...product,
+            ...supply,
+          };
+        })
+      );
+      return res.status(200).json({
+        message: "successfully obtained all company product details",
+        data: [response],
+      });
+    } catch (err) {
+      return res.status(400).json({
+        message: err.message,
+      });
+    }
+  }
   try {
     const all_product_length = await sc_contract.methods
       .getProductLength()
       .call();
-    let products = [];
+    const products = [];
     for (let i = 0; i < all_product_length; i++) {
       products.push(
         product_deserializer(await sc_contract.methods.products(i).call())
@@ -67,6 +109,49 @@ router.get("/", async (req, res) => {
     return res.status(200).json({
       message: "all product retrieved",
       data: [products],
+    });
+  } catch (err) {
+    return res.status(400).json({
+      message: err.message,
+    });
+  }
+});
+
+router.get("/prerequisite", async (req, res) => {
+  if (!req.query.company_address)
+    return res.status(400).json({
+      message: "company address does not exist in body",
+    });
+  try {
+    const company = company_deserializer(
+      await sc_contract.methods.getCompany(req.query.company_address).call()
+    );
+    const response = await Promise.all(
+      company.downstream.map(async (company_product) => {
+        const company_user = await User.findOne({
+          wallet_address: company_product.companyId,
+        });
+        const product = product_deserializer(
+          await p_contract.methods
+            .listOfProducts(company_product.productId)
+            .call()
+        );
+        const supply = supply_deserializer(
+          await sc_contract.methods
+            .getPrerequisiteSupply(company_product.productId)
+            .call()
+        );
+        return {
+          owner: `${company_user.company_name} - ${company_user.wallet_address}`,
+          ...product,
+          ...supply,
+        };
+      })
+    );
+    return res.status(200).json({
+      message:
+        "successfully obtained all prerequisite supply details for a company",
+      data: [response],
     });
   } catch (err) {
     return res.status(400).json({
