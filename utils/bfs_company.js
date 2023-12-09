@@ -98,7 +98,7 @@ module.exports = async (start_node, x, custom) => {
         }
         if (!visited[neighbor]) {
           temp.push([neighbor, level + 1]); // Enqueue the neighbor
-          visited[neighbor] = true; // Mark neighbor as visited
+          visited[`${neighbor} - ${product.productName}`] = true; // Mark neighbor as visited
         }
       }
     }
