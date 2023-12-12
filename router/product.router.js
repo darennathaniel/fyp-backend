@@ -117,6 +117,48 @@ router.get("/", async (req, res) => {
   }
 });
 
+router.get("/my", token_verification, async (req, res) => {
+  try {
+    const company = company_deserializer(
+      await sc_contract.methods.getCompany(req.wallet_address).call()
+    );
+    const response = await Promise.all(
+      company.listOfSupply.map(async (product_id) => {
+        const product = product_deserializer(
+          await p_contract.methods.listOfProducts(product_id).call()
+        );
+        let supply;
+        try {
+          supply = supply_deserializer(
+            await sc_contract.methods
+              .getSupply(product_id)
+              .call({ from: req.wallet_address })
+          );
+        } catch (err) {
+          console.log(err);
+          supply = {
+            total: 0,
+            supplyId: [],
+            quantities: [],
+          };
+        }
+        return {
+          ...product,
+          ...supply,
+        };
+      })
+    );
+    return res.status(200).json({
+      message: "successfully obtained all company product details",
+      data: [response],
+    });
+  } catch (err) {
+    return res.status(400).json({
+      message: err.message,
+    });
+  }
+});
+
 router.get("/prerequisite", async (req, res) => {
   if (!req.query.company_address)
     return res.status(400).json({
