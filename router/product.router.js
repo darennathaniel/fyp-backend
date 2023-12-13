@@ -180,7 +180,7 @@ router.get("/prerequisite", async (req, res) => {
         const supply = supply_deserializer(
           await sc_contract.methods
             .getPrerequisiteSupply(company_product.productId)
-            .call()
+            .call({ from: req.query.company_address })
         );
         return {
           owner: `${company_user.company_name} - ${company_user.wallet_address}`,
@@ -210,6 +210,19 @@ router.post("/", token_verification, async (req, res) => {
     return res.status(400).json({
       message: "prerequisite supplies does not exist in body",
     });
+  const seen = {};
+  const hasDuplicates = req.body.prerequisite_supplies.some(function (
+    currentObject
+  ) {
+    if (seen.hasOwnProperty(currentObject.name)) {
+      return true;
+    }
+    return (seen[currentObject.name] = false);
+  });
+  if (hasDuplicates)
+    return res.status(400).json({
+      message: "please remove any duplicate recipes",
+    });
   if (!req.body.quantity_prerequisite_supplies)
     return res.status(400).json({
       message: "quantity prerequisite supplies does not exist in body",
@@ -218,19 +231,15 @@ router.post("/", token_verification, async (req, res) => {
     const company = company_deserializer(
       await sc_contract.methods.getCompany(req.wallet_address).call()
     );
-    const prerequisite_supplies = req.body.prerequisite_supplies.map(
-      (supply) => {
-        if (
-          company.listOfPrerequisites.filter((id) => id === supply.product_id)
-            .length === 0
-        )
-          throw Error("product does not exist in prerequisite");
+    const prerequisite_supplies = await Promise.all(
+      req.body.prerequisite_supplies.map(async (supply) => {
         return {
           productId: supply.product_id,
           productName: supply.product_name,
           exist: true,
+          has_recipe: false,
         };
-      }
+      })
     );
     const id = parseInt(crypto.randomBytes(2).toString("hex"), 16);
     await p_contract.methods
@@ -250,7 +259,7 @@ router.post("/", token_verification, async (req, res) => {
     const product = await p_contract.methods.listOfProducts(id).call();
     return res.status(200).json({
       message: "product has been created",
-      data: [product_deserializer(product)],
+      data: [{ ...product_deserializer(product), total: 0 }],
     });
   } catch (err) {
     if (err.name && err.name === "ContractExecutionError")
