@@ -97,13 +97,13 @@ router.get("/", async (req, res) => {
     }
   }
   try {
-    const all_product_length = await sc_contract.methods
+    const all_product_length = await p_contract.methods
       .getProductLength()
       .call();
     const products = [];
     for (let i = 0; i < all_product_length; i++) {
       products.push(
-        product_deserializer(await sc_contract.methods.products(i).call())
+        product_deserializer(await p_contract.methods.products(i).call())
       );
     }
     return res.status(200).json({
@@ -135,7 +135,6 @@ router.get("/my", token_verification, async (req, res) => {
               .call({ from: req.wallet_address })
           );
         } catch (err) {
-          console.log(err);
           supply = {
             total: 0,
             supplyId: [],
