@@ -142,7 +142,14 @@ router.post("/prerequisite", token_verification, async (req, res) => {
     });
     return res.status(200).json({
       message: "prerequisite supply converted to product supply",
-      data: [supply],
+      data: [
+        {
+          ...supply,
+          product: product_deserializer(
+            await p_contract.methods.listOfProducts(req.body.product_id).call()
+          ),
+        },
+      ],
     });
   } catch (err) {
     if (err.name && err.name === "ContractExecutionError")
