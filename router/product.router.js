@@ -4,6 +4,7 @@ const crypto = require("crypto");
 
 const token_verification = require("../middleware/token_verification");
 const product_deserializer = require("../utils/product_deserializer");
+const recipe_deserializer = require("../utils/recipe_deserializer");
 const supply_deserializer = require("../utils/supply_deserializer");
 const company_deserializer = require("../utils/company_deserializer");
 const User = require("../schema/User.model");
@@ -30,6 +31,9 @@ router.get("/", async (req, res) => {
       const product = await p_contract.methods
         .listOfProducts(product_id)
         .call();
+      const recipe = recipe_deserializer(
+        await p_contract.methods.getRecipe(product_id).call()
+      );
       const all_company_length = await p_contract.methods
         .getProductOwnerLength(product_id)
         .call();
@@ -48,9 +52,11 @@ router.get("/", async (req, res) => {
       }
       return res.status(200).json({
         message: "product retrieved",
-        data: [{ product: product_deserializer(product), companies }],
+        data: [{ product: product_deserializer(product), recipe, companies }],
       });
     } catch (err) {
+      if (err.name && err.name === "ContractExecutionError")
+        return res.status(400).json({ message: err.innerError.message });
       return res.status(400).json({
         message: err.message,
       });
