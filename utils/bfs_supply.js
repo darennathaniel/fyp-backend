@@ -42,15 +42,17 @@ module.exports = async (start_node, x) => {
         );
         supplies.push({
           ...supply._doc,
-          id: supply.supplyId,
+          id: supply.supplyId.toString(),
           position: {
             x: x + x_offset + i * x_spacing,
             y: level * y_spacing,
           },
           product,
           data: {
-            label: `${product.productName} timestamp ${supply.timestamp}`,
+            label: `${product.productName}`,
+            meta: { ...supply._doc, product },
           },
+          type: "customNode",
         });
         const current_supply = past_supply_deserializer(
           await sc_contract.methods.getPastSupply(current_supply_id).call()
@@ -62,8 +64,10 @@ module.exports = async (start_node, x) => {
           if (!visited[neighbor]) {
             edges.push({
               id: crypto.randomBytes(16).toString("hex"),
-              source: current_supply_id,
-              target: neighbor,
+              source: current_supply_id.toString(),
+              target: neighbor.toString(),
+              sourceHandle: "top",
+              targetHandle: "bottom",
               label: `${product.productName} + ${
                 product_deserializer(
                   await p_contract.methods
