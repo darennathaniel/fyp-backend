@@ -38,7 +38,6 @@ module.exports = async (start_node, x, custom) => {
       const current_company = company_deserializer(
         await sc_contract.methods.getCompany(current_company_address).call()
       );
-
       companies.push({
         ...current_company,
         listOfSupply: await Promise.all(

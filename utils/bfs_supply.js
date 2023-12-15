@@ -54,34 +54,40 @@ module.exports = async (start_node, x) => {
           },
           type: "customNode",
         });
-        const current_supply = past_supply_deserializer(
-          await sc_contract.methods.getPastSupply(current_supply_id).call()
-        );
-        const neighbors = current_supply.pastSupply;
-        for (let i = 0; i < neighbors.length; i++) {
-          const neighbor = neighbors[i];
-          const neighbor_supply = await Supply.findOne({ supplyId: neighbor });
-          if (!visited[neighbor]) {
-            edges.push({
-              id: crypto.randomBytes(16).toString("hex"),
-              source: current_supply_id.toString(),
-              target: neighbor.toString(),
-              sourceHandle: "top",
-              targetHandle: "bottom",
-              label: `${product.productName} + ${
-                product_deserializer(
-                  await p_contract.methods
-                    .listOfProducts(neighbor_supply.productId)
-                    .call()
-                ).productName
-              }`,
+        try {
+          const current_supply = past_supply_deserializer(
+            await sc_contract.methods.getPastSupply(current_supply_id).call()
+          );
+          const neighbors = current_supply.pastSupply;
+          for (let i = 0; i < neighbors.length; i++) {
+            const neighbor = neighbors[i];
+            const neighbor_supply = await Supply.findOne({
+              supplyId: neighbor,
             });
-            temp.push([neighbor, level + 1]); // Enqueue the neighbor
-            visited[neighbor] = true; // Mark neighbor as visited
+            if (!visited[neighbor]) {
+              edges.push({
+                id: crypto.randomBytes(16).toString("hex"),
+                source: current_supply_id.toString(),
+                target: neighbor.toString(),
+                sourceHandle: "top",
+                targetHandle: "bottom",
+                label: `${product.productName} + ${
+                  product_deserializer(
+                    await p_contract.methods
+                      .listOfProducts(neighbor_supply.productId)
+                      .call()
+                  ).productName
+                }`,
+              });
+              temp.push([neighbor, level + 1]); // Enqueue the neighbor
+              visited[neighbor] = true; // Mark neighbor as visited
+            }
           }
+        } catch (err) {
+          console.log("no more past supplies");
         }
+        queue = temp;
       }
-      queue = temp;
     }
   } catch (err) {
     return { supplies, edges };

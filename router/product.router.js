@@ -220,10 +220,10 @@ router.post("/", token_verification, async (req, res) => {
   const hasDuplicates = req.body.prerequisite_supplies.some(function (
     currentObject
   ) {
-    if (seen.hasOwnProperty(currentObject.name)) {
+    if (seen.hasOwnProperty(currentObject.product_id)) {
       return true;
     }
-    return (seen[currentObject.name] = false);
+    return (seen[currentObject.product_id] = false);
   });
   if (hasDuplicates)
     return res.status(400).json({

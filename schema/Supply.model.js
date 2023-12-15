@@ -8,7 +8,7 @@ mongoose
   .then(() => {
     console.log("connected to database!");
   })
-  .catch((err) => console.log(err.response));
+  .catch((err) => console.log(err));
 
 const supply_schema = new Schema({
   supplyId: {

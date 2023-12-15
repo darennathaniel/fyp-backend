@@ -8,7 +8,7 @@ mongoose
   .then(() => {
     console.log("connected to database!");
   })
-  .catch((err) => console.log(err.response));
+  .catch((err) => console.log(err));
 
 const user_schema = new Schema({
   username: {
