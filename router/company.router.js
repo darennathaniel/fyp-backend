@@ -104,18 +104,34 @@ router.get("/", async (req, res) => {
     for (let i = 0; i < head_companies_length; i++) {
       head_companies.push(await sc_contract.methods.headCompanies(i).call());
     }
-    const result = { companies: [], edges: [] };
+    const result = { companies: [], edges: [], list_of_companies: [] };
     let x = 0;
     const x_offset = 400;
     for (let i = 0; i < head_companies_length; i++) {
-      const { companies, edges } = await bfs(head_companies[i].owner, x, true);
+      const { companies, edges, list_of_companies } = await bfs(
+        head_companies[i].owner,
+        x,
+        true
+      );
       result.companies.push(...companies);
       result.edges.push(...edges);
+      list_of_companies.forEach((company) => {
+        if (
+          result.list_of_companies.length === 0 ||
+          result.list_of_companies.filter(
+            (all_company) => all_company.owner === company.owner
+          ).length === 0
+        )
+          result.list_of_companies.push(company);
+      });
       x += x_offset;
     }
     res.status(200).json({
       message: "company result",
-      data: [result],
+      data: [
+        result.list_of_companies,
+        { companies: result.companies, edges: result.edges },
+      ],
     });
   } catch (err) {
     return res.status(400).json({
