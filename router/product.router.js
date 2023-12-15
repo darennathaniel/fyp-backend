@@ -121,6 +121,50 @@ router.get("/", async (req, res) => {
   }
 });
 
+router.get("/recipe", token_verification, async (req, res) => {
+  if (!req.query.product_id)
+    return res.status(400).json({
+      message: "product ID does not exist in query",
+    });
+  try {
+    const recipes = recipe_deserializer(
+      await p_contract.methods
+        .getRecipe(req.query.product_id)
+        .call({ from: req.wallet_address })
+    );
+    const response = await Promise.all(
+      recipes.prerequisites.map(async (product, idx) => {
+        try {
+          const supply = supply_deserializer(
+            await sc_contract.methods
+              .getPrerequisiteSupply(product.productId)
+              .call({ from: req.wallet_address })
+          );
+          return {
+            product,
+            inventory_quantity: supply.total,
+            recipe_quantity: recipes.quantities[idx],
+          };
+        } catch (err) {
+          return {
+            product,
+            inventory_quantity: 0,
+            recipe_quantity: recipes.quantities[idx],
+          };
+        }
+      })
+    );
+    return res.status(200).json({
+      message: "obtained product recipe",
+      data: [response],
+    });
+  } catch (err) {
+    return res.status(400).json({
+      message: err.message,
+    });
+  }
+});
+
 router.get("/my", token_verification, async (req, res) => {
   try {
     const company = company_deserializer(
