@@ -25,6 +25,7 @@ module.exports = async (start_node, x, custom) => {
 
   const companies = [];
   const edges = [];
+  const list_of_companies = [];
 
   queue.push([start_node, 0]);
   visited[start_node] = true;
@@ -38,20 +39,24 @@ module.exports = async (start_node, x, custom) => {
       const current_company = company_deserializer(
         await sc_contract.methods.getCompany(current_company_address).call()
       );
+      if (
+        list_of_companies.length === 0 ||
+        list_of_companies.filter(
+          (company) => company.owner === current_company.owner
+        ).length === 0
+      ) {
+        list_of_companies.push(current_company);
+      }
       companies.push({
         ...current_company,
         listOfSupply: await Promise.all(
           current_company.listOfSupply.map(async (id) =>
-            product_deserializer(
-              await p_contract.methods.listOfProducts(id).call()
-            )
+            product_deserializer(await p_contract.methods.getProduct(id).call())
           )
         ),
         listOfPrerequisites: await Promise.all(
           current_company.listOfPrerequisites.map(async (id) =>
-            product_deserializer(
-              await p_contract.methods.listOfProducts(id).call()
-            )
+            product_deserializer(await p_contract.methods.getProduct(id).call())
           )
         ),
         id: current_company.owner,
@@ -70,7 +75,7 @@ module.exports = async (start_node, x, custom) => {
       for (let i = 0; i < neighbors.length; i++) {
         const neighbor = neighbors[i].companyId;
         const product = await p_contract.methods
-          .listOfProducts(neighbors[i].productId)
+          .getProduct(neighbors[i].productId)
           .call();
         if (
           edges.some(
@@ -103,5 +108,5 @@ module.exports = async (start_node, x, custom) => {
     }
     queue = temp;
   }
-  return { companies, edges };
+  return { companies, edges, list_of_companies };
 };

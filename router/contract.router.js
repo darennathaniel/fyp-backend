@@ -35,7 +35,7 @@ router.get("/incoming", token_verification, async (req, res) => {
       if (filtered_contract.length === 1) {
         const product = product_deserializer(
           await p_contract.methods
-            .listOfProducts(filtered_contract[0].productId)
+            .getProduct(filtered_contract[0].productId)
             .call()
         );
         const from_company = await User.findOne({
@@ -73,9 +73,7 @@ router.get("/incoming", token_verification, async (req, res) => {
                 wallet_address: contract.to,
               });
               const product = product_deserializer(
-                await p_contract.methods
-                  .listOfProducts(contract.productId)
-                  .call()
+                await p_contract.methods.getProduct(contract.productId).call()
               );
               return {
                 ...contract,
@@ -112,7 +110,7 @@ router.get("/incoming", token_verification, async (req, res) => {
       const incoming_contract = await Promise.all(
         company.incomingContract.map(async (request) => {
           const product = product_deserializer(
-            await p_contract.methods.listOfProducts(request.productId).call()
+            await p_contract.methods.getProduct(request.productId).call()
           );
           const from_company = await User.findOne({
             wallet_address: request.from,
@@ -141,7 +139,7 @@ router.get("/incoming", token_verification, async (req, res) => {
             wallet_address: contract.to,
           });
           const product = product_deserializer(
-            await p_contract.methods.listOfProducts(contract.productId).call()
+            await p_contract.methods.getProduct(contract.productId).call()
           );
           return {
             ...contract,
@@ -158,7 +156,7 @@ router.get("/incoming", token_verification, async (req, res) => {
       const incoming_contract = await Promise.all(
         company.incomingContract.map(async (request) => {
           const product = product_deserializer(
-            await p_contract.methods.listOfProducts(request.productId).call()
+            await p_contract.methods.getProduct(request.productId).call()
           );
           const from_company = await User.findOne({
             wallet_address: request.from,
@@ -189,7 +187,7 @@ router.get("/incoming", token_verification, async (req, res) => {
             wallet_address: contract.to,
           });
           const product = product_deserializer(
-            await p_contract.methods.listOfProducts(contract.productId).call()
+            await p_contract.methods.getProduct(contract.productId).call()
           );
           return {
             ...contract,
@@ -226,7 +224,7 @@ router.get("/outgoing", token_verification, async (req, res) => {
       if (filtered_contract.length === 1) {
         const product = product_deserializer(
           await p_contract.methods
-            .listOfProducts(filtered_contract[0].productId)
+            .getProduct(filtered_contract[0].productId)
             .call()
         );
         const to_company = await User.findOne({
@@ -264,9 +262,7 @@ router.get("/outgoing", token_verification, async (req, res) => {
                 wallet_address: contract.to,
               });
               const product = product_deserializer(
-                await p_contract.methods
-                  .listOfProducts(contract.productId)
-                  .call()
+                await p_contract.methods.getProduct(contract.productId).call()
               );
               return {
                 ...contract,
@@ -303,7 +299,7 @@ router.get("/outgoing", token_verification, async (req, res) => {
       const outgoing_contract = await Promise.all(
         company.outgoingContract.map(async (request) => {
           const product = product_deserializer(
-            await p_contract.methods.listOfProducts(request.productId).call()
+            await p_contract.methods.getProduct(request.productId).call()
           );
           const to_company = await User.findOne({
             wallet_address: request.to,
@@ -332,7 +328,7 @@ router.get("/outgoing", token_verification, async (req, res) => {
             wallet_address: contract.to,
           });
           const product = product_deserializer(
-            await p_contract.methods.listOfProducts(contract.productId).call()
+            await p_contract.methods.getProduct(contract.productId).call()
           );
           return {
             ...contract,
@@ -349,7 +345,7 @@ router.get("/outgoing", token_verification, async (req, res) => {
       const outgoing_contract = await Promise.all(
         company.outgoingContract.map(async (request) => {
           const product = product_deserializer(
-            await p_contract.methods.listOfProducts(request.productId).call()
+            await p_contract.methods.getProduct(request.productId).call()
           );
           const to_company = await User.findOne({
             wallet_address: request.to,
@@ -380,7 +376,7 @@ router.get("/outgoing", token_verification, async (req, res) => {
             wallet_address: contract.to,
           });
           const product = product_deserializer(
-            await p_contract.methods.listOfProducts(contract.productId).call()
+            await p_contract.methods.getProduct(contract.productId).call()
           );
           return {
             ...contract,
@@ -431,7 +427,7 @@ router.get("/products", token_verification, async (req, res) => {
     const fetched_products = await Promise.all(
       list_of_products.map(async (product_id) =>
         product_deserializer(
-          await p_contract.methods.listOfProducts(product_id).call()
+          await p_contract.methods.getProduct(product_id).call()
         )
       )
     );

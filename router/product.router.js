@@ -28,9 +28,7 @@ router.get("/", async (req, res) => {
   if (req.query.product_id) {
     const product_id = req.query.product_id;
     try {
-      const product = await p_contract.methods
-        .listOfProducts(product_id)
-        .call();
+      const product = await p_contract.methods.getProduct(product_id).call();
       const recipe = recipe_deserializer(
         await p_contract.methods.getRecipe(product_id).call()
       );
@@ -70,7 +68,7 @@ router.get("/", async (req, res) => {
       const response = await Promise.all(
         company.listOfSupply.map(async (product_id) => {
           const product = product_deserializer(
-            await p_contract.methods.listOfProducts(product_id).call()
+            await p_contract.methods.getProduct(product_id).call()
           );
           let supply;
           try {
@@ -131,7 +129,7 @@ router.get("/my", token_verification, async (req, res) => {
     const response = await Promise.all(
       company.listOfSupply.map(async (product_id) => {
         const product = product_deserializer(
-          await p_contract.methods.listOfProducts(product_id).call()
+          await p_contract.methods.getProduct(product_id).call()
         );
         let supply;
         try {
@@ -179,9 +177,7 @@ router.get("/prerequisite", async (req, res) => {
           wallet_address: company_product.companyId,
         });
         const product = product_deserializer(
-          await p_contract.methods
-            .listOfProducts(company_product.productId)
-            .call()
+          await p_contract.methods.getProduct(company_product.productId).call()
         );
         const supply = supply_deserializer(
           await sc_contract.methods
@@ -262,7 +258,7 @@ router.post("/", token_verification, async (req, res) => {
     await sc_contract.methods
       .addProduct(id, req.body.product_name, req.wallet_address)
       .send({ from: req.wallet_address, gas: "6721975" });
-    const product = await p_contract.methods.listOfProducts(id).call();
+    const product = await p_contract.methods.getProduct(id).call();
     return res.status(200).json({
       message: "product has been created",
       data: [{ ...product_deserializer(product), total: 0 }],
@@ -297,7 +293,7 @@ router.post("/no_recipe", token_verification, async (req, res) => {
     await sc_contract.methods
       .addProduct(id, req.body.product_name, req.body.owner)
       .send({ from: req.wallet_address, gas: "6721975" });
-    const product = await p_contract.methods.listOfProducts(id).call();
+    const product = await p_contract.methods.getProduct(id).call();
     return res.status(200).json({
       message: "product has been created",
       data: [product_deserializer(product)],

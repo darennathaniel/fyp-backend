@@ -146,7 +146,7 @@ router.post("/prerequisite", token_verification, async (req, res) => {
         {
           ...supply,
           product: product_deserializer(
-            await p_contract.methods.listOfProducts(req.body.product_id).call()
+            await p_contract.methods.getProduct(req.body.product_id).call()
           ),
         },
       ],
@@ -258,7 +258,7 @@ router.get("/", async (req, res) => {
         return {
           ...supply._doc,
           product: product_deserializer(
-            await p_contract.methods.listOfProducts(supply.productId).call()
+            await p_contract.methods.getProduct(supply.productId).call()
           ),
         };
       })

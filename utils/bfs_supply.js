@@ -38,7 +38,7 @@ module.exports = async (start_node, x) => {
         const level = queue[i][1];
         const supply = await Supply.findOne({ supplyId: current_supply_id });
         const product = product_deserializer(
-          await p_contract.methods.listOfProducts(supply.productId).call()
+          await p_contract.methods.getProduct(supply.productId).call()
         );
         supplies.push({
           ...supply._doc,
@@ -71,13 +71,13 @@ module.exports = async (start_node, x) => {
                 target: neighbor.toString(),
                 sourceHandle: "top",
                 targetHandle: "bottom",
-                label: `${product.productName} + ${
-                  product_deserializer(
-                    await p_contract.methods
-                      .listOfProducts(neighbor_supply.productId)
-                      .call()
-                  ).productName
-                }`,
+                // label: `${product.productName} + ${
+                //   product_deserializer(
+                //     await p_contract.methods
+                //       .getProduct(neighbor_supply.productId)
+                //       .call()
+                //   ).productName
+                // }`,
               });
               temp.push([neighbor, level + 1]); // Enqueue the neighbor
               visited[neighbor] = true; // Mark neighbor as visited
