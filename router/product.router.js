@@ -29,9 +29,6 @@ router.get("/", async (req, res) => {
     const product_id = req.query.product_id;
     try {
       const product = await p_contract.methods.getProduct(product_id).call();
-      const recipe = recipe_deserializer(
-        await p_contract.methods.getRecipe(product_id).call()
-      );
       const all_company_length = await p_contract.methods
         .getProductOwnerLength(product_id)
         .call();
@@ -40,9 +37,9 @@ router.get("/", async (req, res) => {
         const company_address = await p_contract.methods
           .productOwners(product_id, i)
           .call();
-        const company = await sc_contract.methods
-          .companies(company_address)
-          .call();
+        const company = company_deserializer(
+          await sc_contract.methods.getCompany(company_address).call()
+        );
         companies.push({
           owner: company.owner,
           name: company.name,
@@ -50,7 +47,7 @@ router.get("/", async (req, res) => {
       }
       return res.status(200).json({
         message: "product retrieved",
-        data: [{ product: product_deserializer(product), recipe, companies }],
+        data: [{ product: product_deserializer(product), companies }],
       });
     } catch (err) {
       if (err.name && err.name === "ContractExecutionError")
