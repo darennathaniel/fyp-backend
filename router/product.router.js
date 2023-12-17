@@ -129,6 +129,9 @@ router.get("/recipe", token_verification, async (req, res) => {
         .getRecipe(req.query.product_id)
         .call({ from: req.wallet_address })
     );
+    const company = company_deserializer(
+      await sc_contract.methods.getCompany(req.wallet_address).call()
+    );
     const response = await Promise.all(
       recipes.prerequisites.map(async (product, idx) => {
         try {
@@ -137,23 +140,39 @@ router.get("/recipe", token_verification, async (req, res) => {
               .getPrerequisiteSupply(product.productId)
               .call({ from: req.wallet_address })
           );
+          const company_product = company.downstream.filter(
+            (company_product) => company_product.productId === product.productId
+          );
           return {
             product,
+            product_owner: company_product,
             inventory_quantity: supply.total,
             recipe_quantity: recipes.quantities[idx],
           };
         } catch (err) {
           return {
             product,
+            product_owner: [],
             inventory_quantity: 0,
             recipe_quantity: recipes.quantities[idx],
           };
         }
       })
     );
+    const flatten_response = [];
+    response.forEach((data) => {
+      flatten_response.push(
+        ...data.product_owner.map((product_owner) => {
+          return {
+            ...data,
+            product_owner,
+          };
+        })
+      );
+    });
     return res.status(200).json({
       message: "obtained product recipe",
-      data: [response],
+      data: [flatten_response],
     });
   } catch (err) {
     return res.status(400).json({
