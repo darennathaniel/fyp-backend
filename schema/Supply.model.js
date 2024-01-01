@@ -31,6 +31,10 @@ const supply_schema = new Schema({
     type: Date,
     required: true,
   },
+  owner: {
+    type: String,
+    required: true,
+  },
 });
 
 supply_schema.set("toJSON");

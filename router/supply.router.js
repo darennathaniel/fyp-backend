@@ -139,6 +139,7 @@ router.post("/prerequisite", token_verification, async (req, res) => {
       quantity: req.body.number_of_supply,
       quantity_left: req.body.number_of_supply,
       timestamp: new Date(),
+      owner: req.wallet_address,
     });
     return res.status(200).json({
       message: "prerequisite supply converted to product supply",
