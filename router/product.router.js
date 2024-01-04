@@ -161,14 +161,21 @@ router.get("/recipe", token_verification, async (req, res) => {
     );
     const flatten_response = [];
     response.forEach((data) => {
-      flatten_response.push(
-        ...data.product_owner.map((product_owner) => {
-          return {
-            ...data,
-            product_owner,
-          };
-        })
-      );
+      if (data.product_owner.length > 0) {
+        flatten_response.push(
+          ...data.product_owner.map((product_owner) => {
+            return {
+              ...data,
+              product_owner,
+            };
+          })
+        );
+      } else {
+        flatten_response.push({
+          ...data,
+          product_owner: undefined,
+        });
+      }
     });
     return res.status(200).json({
       message: "obtained product recipe",
