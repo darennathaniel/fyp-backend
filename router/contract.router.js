@@ -508,7 +508,7 @@ router.post("/approve", token_verification, async (req, res) => {
     });
   if (req.body.to !== req.wallet_address)
     return res.status(403).json({
-      message: "only to address are allowed to decline the contract",
+      message: "only to address are allowed to approve the contract",
     });
   try {
     await sc_contract.methods

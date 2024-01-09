@@ -297,9 +297,6 @@ router.post("/", token_verification, async (req, res) => {
       message: "quantity prerequisite supplies does not exist in body",
     });
   try {
-    const company = company_deserializer(
-      await sc_contract.methods.getCompany(req.wallet_address).call()
-    );
     const prerequisite_supplies = await Promise.all(
       req.body.prerequisite_supplies.map(async (supply) => {
         return {
