@@ -179,7 +179,7 @@ router.get("/recipe", token_verification, async (req, res) => {
     });
     return res.status(200).json({
       message: "obtained product recipe",
-      data: [flatten_response],
+      data: [flatten_response, response],
     });
   } catch (err) {
     return res.status(400).json({
