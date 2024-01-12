@@ -46,6 +46,7 @@ router.post("/", token_verification, async (req, res) => {
       productId: req.body.product_id,
       quantity: req.body.number_of_supply,
       quantity_left: req.body.number_of_supply,
+      owner: req.wallet_address,
       timestamp: new Date(),
     });
     return res.status(200).json({

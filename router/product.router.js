@@ -296,14 +296,58 @@ router.post("/", token_verification, async (req, res) => {
     return res.status(400).json({
       message: "quantity prerequisite supplies does not exist in body",
     });
+  if (req.query.existing) {
+    if (!req.body.product_id)
+      return res.status(400).json({
+        message: "product ID does not exist in body",
+      });
+    try {
+      const prerequisite_supplies = await Promise.all(
+        req.body.prerequisite_supplies.map(async (supply) => {
+          const product = product_deserializer(
+            await p_contract.methods.getProduct(supply.product_id).call()
+          );
+          return {
+            ...product,
+            exist: true,
+          };
+        })
+      );
+      await p_contract.methods
+        .addProductOwnerWithRecipe(
+          req.body.product_id,
+          prerequisite_supplies,
+          req.body.quantity_prerequisite_supplies
+        )
+        .send({
+          from: req.wallet_address,
+          gas: "6721975",
+        });
+      await sc_contract.methods
+        .addProductOwner(req.body.product_id, req.body.product_name)
+        .send({ from: req.wallet_address, gas: "6721975" });
+      const product = await p_contract.methods
+        .getProduct(req.body.product_id)
+        .call();
+      return res.status(200).json({
+        message: "product has been created",
+        data: [{ ...product_deserializer(product), total: 0 }],
+      });
+    } catch (err) {
+      return res.status(400).json({
+        message: err.message,
+      });
+    }
+  }
   try {
     const prerequisite_supplies = await Promise.all(
       req.body.prerequisite_supplies.map(async (supply) => {
+        const product = product_deserializer(
+          await p_contract.methods.getProduct(supply.product_id).call()
+        );
         return {
-          productId: supply.product_id,
-          productName: supply.product_name,
+          ...product,
           exist: true,
-          has_recipe: false,
         };
       })
     );
