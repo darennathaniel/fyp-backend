@@ -108,6 +108,16 @@ router.get("/", async (req, res) => {
         product_deserializer(await p_contract.methods.products(i).call())
       );
     }
+    if (req.query.has_recipe === false)
+      return res.status(200).json({
+        message: "all product that has no recipe retrieved",
+        data: [products.filter((product) => !product.has_recipe)],
+      });
+    if (req.query.has_recipe)
+      return res.status(200).json({
+        message: "all product that has recipe retrieved",
+        data: [products.filter((product) => product.has_recipe)],
+      });
     return res.status(200).json({
       message: "all product retrieved",
       data: [products],
