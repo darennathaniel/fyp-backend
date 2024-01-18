@@ -8,6 +8,7 @@ const recipe_deserializer = require("../utils/recipe_deserializer");
 const supply_deserializer = require("../utils/supply_deserializer");
 const company_deserializer = require("../utils/company_deserializer");
 const User = require("../schema/User.model");
+const ProductRequest = require("../schema/ProductRequest.model");
 
 const { Web3 } = require("web3");
 const supplyChainNetwork = require("../SupplyChainNetwork.json");
@@ -380,28 +381,131 @@ router.post("/", token_verification, async (req, res) => {
   }
 });
 
-router.post("/no_recipe", token_verification, async (req, res) => {
-  if (!req.body.product_name)
+router.post("/no_recipe/request", token_verification, async (req, res) => {
+  if (req.query.existing) {
+    if (!req.body.product)
+      return res.status(400).json({
+        message: "product does not exist in body",
+      });
+    if (!req.body.product.productId)
+      return res.status(400).json({
+        message: "product ID does not exist in body",
+      });
+    if (!req.body.product.productName)
+      return res.status(400).json({
+        message: "product Name does not exist in body",
+      });
+    try {
+      const request = await ProductRequest.create({
+        productId: req.body.product.productId,
+        productName: req.body.product.productName,
+        company: req.wallet_address,
+        existing: true,
+        created_at: new Date(),
+        updated_at: new Date(),
+        progress: "pending",
+      });
+      return res.status(200).json({
+        message: "successfully requested to add product without recipe",
+        data: [request],
+      });
+    } catch (err) {
+      return res.status(400).json({
+        message: err.message,
+      });
+    }
+  }
+  if (!req.body.productName)
+    return res.status(400).json({
+      message: "product Name does note exist in body",
+    });
+  try {
+    const request = await ProductRequest.create({
+      productName: req.body.productName,
+      company: req.wallet_address,
+      existing: false,
+      created_at: new Date(),
+      updated_at: new Date(),
+      progress: "pending",
+    });
+    return res.status(200).json({
+      message: "successfully requested to add product without recipe",
+      data: [request],
+    });
+  } catch (err) {
+    return res.status(400).json({
+      message: err.message,
+    });
+  }
+});
+
+router.post("/no_recipe/approve", token_verification, async (req, res) => {
+  if (!req.body.product_request_id)
     return res.status(400).json({
       message: "product name does not exist in body",
-    });
-  if (!req.body.owner)
-    return res.status(400).json({
-      message: "owner address does not exist in body",
     });
   if (!req.owner)
     return res.status(403).json({
       message: "only network owners are allowed",
     });
-  const id = parseInt(crypto.randomBytes(2).toString("hex"), 16);
   try {
+    const request = await ProductRequest.findById(req.body.product_request_id);
+    if (request.progress !== "pending")
+      return res.status(400).json({
+        message: "request has been processed!",
+      });
+    if (existing) {
+      await p_contract.methods
+        .addProductOwnerWithoutRecipe(request.productId, request.company)
+        .send({ from: req.wallet_address, gas: "6721975" });
+      // TODO: change addProductOwner only networkOwner
+      await sc_contract.methods
+        .addProductOwner(request.productId, request.productName)
+        .send({ from: req.wallet_address, gas: "6721975" });
+      request.updated_at = new Date();
+      request.progress = "approved";
+      request.save();
+      return res.status(200).json({
+        message: "product has been created",
+        data: [],
+      });
+    }
+    const id = parseInt(crypto.randomBytes(2).toString("hex"), 16);
     await p_contract.methods
-      .addProductWithoutRecipe(id, req.body.product_name, req.body.owner)
+      .addProductWithoutRecipe(id, request.productName, request.company)
       .send({ from: req.wallet_address, gas: "6721975" });
     await sc_contract.methods
-      .addProduct(id, req.body.product_name, req.body.owner)
+      .addProduct(id, request.productName, request.company)
       .send({ from: req.wallet_address, gas: "6721975" });
+    request.updated_at = new Date();
+    request.progress = "approved";
+    request.save();
     const product = await p_contract.methods.getProduct(id).call();
+    return res.status(200).json({
+      message: "product has been created",
+      data: [product_deserializer(product)],
+    });
+  } catch (err) {
+    return res.status(400).json({
+      message: err.message,
+    });
+  }
+});
+
+router.post("/no_recipe/decline", token_verification, async (req, res) => {
+  if (!req.body.product_request_id)
+    return res.status(400).json({
+      message: "product name does not exist in body",
+    });
+  if (!req.owner)
+    return res.status(403).json({
+      message: "only network owners are allowed",
+    });
+  try {
+    const request = await ProductRequest.findById(req.body.product_request_id);
+    request.updated_at = new Date();
+    request.progress = "declined";
+    request.save();
     return res.status(200).json({
       message: "product has been created",
       data: [product_deserializer(product)],
