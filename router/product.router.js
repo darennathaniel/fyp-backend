@@ -108,11 +108,12 @@ router.get("/", async (req, res) => {
         product_deserializer(await p_contract.methods.products(i).call())
       );
     }
-    if (req.query.has_recipe === false)
+    if (req.query.has_recipe === "false") {
       return res.status(200).json({
         message: "all product that has no recipe retrieved",
         data: [products.filter((product) => !product.has_recipe)],
       });
+    }
     if (req.query.has_recipe)
       return res.status(200).json({
         message: "all product that has recipe retrieved",
@@ -391,17 +392,13 @@ router.post("/", token_verification, async (req, res) => {
   }
 });
 
-router.post("/no_recipe/request", token_verification, async (req, res) => {
+router.post("/no_recipe", token_verification, async (req, res) => {
   if (req.query.existing) {
-    if (!req.body.product)
-      return res.status(400).json({
-        message: "product does not exist in body",
-      });
-    if (!req.body.product.productId)
+    if (!req.body.product_id)
       return res.status(400).json({
         message: "product ID does not exist in body",
       });
-    if (!req.body.product.productName)
+    if (!req.body.product_name)
       return res.status(400).json({
         message: "product Name does not exist in body",
       });
