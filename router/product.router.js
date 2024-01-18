@@ -404,8 +404,8 @@ router.post("/no_recipe", token_verification, async (req, res) => {
       });
     try {
       const request = await ProductRequest.create({
-        productId: req.body.product.productId,
-        productName: req.body.product.productName,
+        productId: req.body.product_id,
+        productName: req.body.product_name,
         company: req.wallet_address,
         existing: true,
         created_at: new Date(),
@@ -422,13 +422,13 @@ router.post("/no_recipe", token_verification, async (req, res) => {
       });
     }
   }
-  if (!req.body.productName)
+  if (!req.body.product_name)
     return res.status(400).json({
       message: "product Name does note exist in body",
     });
   try {
     const request = await ProductRequest.create({
-      productName: req.body.productName,
+      productName: req.body.product_name,
       company: req.wallet_address,
       existing: false,
       created_at: new Date(),
@@ -461,7 +461,7 @@ router.post("/no_recipe/approve", token_verification, async (req, res) => {
       return res.status(400).json({
         message: "request has been processed!",
       });
-    if (existing) {
+    if (request.existing) {
       await p_contract.methods
         .addProductOwnerWithoutRecipe(request.productId, request.company)
         .send({ from: req.wallet_address, gas: "6721975" });
@@ -516,6 +516,62 @@ router.post("/no_recipe/decline", token_verification, async (req, res) => {
     return res.status(200).json({
       message: "product has been created",
       data: [product_deserializer(product)],
+    });
+  } catch (err) {
+    return res.status(400).json({
+      message: err.message,
+    });
+  }
+});
+
+router.get("/no_recipe", token_verification, async (req, res) => {
+  if (req.owner) {
+    try {
+      let request;
+      if (req.query.timeline === "current") {
+        request = await ProductRequest.find({
+          progress: "pending",
+        });
+      } else {
+        const approved_request = await ProductRequest.find({
+          progress: "approved",
+        });
+        const declined_request = await ProductRequest.find({
+          progress: "declined",
+        });
+        request = approved_request.concat(declined_request);
+      }
+      return res.status(200).json({
+        message: "product request has been retrieved",
+        data: [request],
+      });
+    } catch (err) {
+      return res.status(400).json({
+        message: err.message,
+      });
+    }
+  }
+  try {
+    let request;
+    if (req.query.timeline === "current") {
+      request = await ProductRequest.find({
+        progress: "pending",
+        company: req.wallet_address,
+      });
+    } else {
+      const approved_request = await ProductRequest.find({
+        progress: "approved",
+        company: req.wallet_address,
+      });
+      const declined_request = await ProductRequest.find({
+        progress: "declined",
+        company: req.wallet_address,
+      });
+      request = approved_request.concat(declined_request);
+    }
+    return res.status(200).json({
+      message: "product request has been retrieved",
+      data: [request],
     });
   } catch (err) {
     return res.status(400).json({
