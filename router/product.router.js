@@ -58,7 +58,7 @@ router.get("/", async (req, res) => {
       });
     }
   }
-  if (req.query.company_address) {
+  if (req.query.company_address && !req.query.filter) {
     try {
       const company = company_deserializer(
         await sc_contract.methods.getCompany(req.query.company_address).call()
@@ -108,17 +108,47 @@ router.get("/", async (req, res) => {
         product_deserializer(await p_contract.methods.products(i).call())
       );
     }
+    let my_product;
+    if (req.query.filter && req.query.company_address) {
+      const company = company_deserializer(
+        await sc_contract.methods.getCompany(req.query.company_address).call()
+      );
+      my_product = company.listOfSupply;
+    }
     if (req.query.has_recipe === "false") {
+      if (my_product)
+        return res.status(200).json({
+          message: "all product that has no recipe retrieved",
+          data: [
+            products.filter(
+              (product) =>
+                !product.has_recipe &&
+                !my_product.some((my) => my === product.productId)
+            ),
+          ],
+        });
       return res.status(200).json({
         message: "all product that has no recipe retrieved",
         data: [products.filter((product) => !product.has_recipe)],
       });
     }
-    if (req.query.has_recipe)
+    if (req.query.has_recipe) {
+      if (my_product)
+        return res.status(200).json({
+          message: "all product that has no recipe retrieved",
+          data: [
+            products.filter(
+              (product) =>
+                product.has_recipe &&
+                !my_product.some((my) => my === product.productId)
+            ),
+          ],
+        });
       return res.status(200).json({
         message: "all product that has recipe retrieved",
         data: [products.filter((product) => product.has_recipe)],
       });
+    }
     return res.status(200).json({
       message: "all product retrieved",
       data: [products],
@@ -468,7 +498,7 @@ router.post("/no_recipe/approve", token_verification, async (req, res) => {
       // TODO: change addProductOwner only networkOwner
       await sc_contract.methods
         .addProductOwner(request.productId, request.productName)
-        .send({ from: req.wallet_address, gas: "6721975" });
+        .send({ from: request.company, gas: "6721975" });
       request.updated_at = new Date();
       request.progress = "approved";
       request.save();
@@ -493,6 +523,7 @@ router.post("/no_recipe/approve", token_verification, async (req, res) => {
       data: [product_deserializer(product)],
     });
   } catch (err) {
+    console.log(err);
     return res.status(400).json({
       message: err.message,
     });
@@ -510,6 +541,10 @@ router.post("/no_recipe/decline", token_verification, async (req, res) => {
     });
   try {
     const request = await ProductRequest.findById(req.body.product_request_id);
+    if (request.progress !== "pending")
+      return res.status(400).json({
+        message: "request has been processed!",
+      });
     request.updated_at = new Date();
     request.progress = "declined";
     request.save();
