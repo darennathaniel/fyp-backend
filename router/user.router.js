@@ -7,7 +7,7 @@ const dotenv = require("dotenv").config();
 const token_verification = require("../middleware/token_verification");
 
 const { Web3 } = require("web3");
-const supplyChainNetwork = require("../SupplyChainNetwork.json");
+const supplyChainNetwork = require("../abi/SupplyChainNetwork.json");
 const url = "http://127.0.0.1:7545";
 const provider = new Web3.providers.HttpProvider(url);
 const web3 = new Web3(provider);

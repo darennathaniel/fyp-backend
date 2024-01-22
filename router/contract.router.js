@@ -9,8 +9,8 @@ const product_deserializer = require("../utils/product_deserializer");
 const events_deserializer = require("../utils/events_deserializer");
 
 const { Web3 } = require("web3");
-const supplyChainNetwork = require("../SupplyChainNetwork.json");
-const productContract = require("../ProductContract.json");
+const supplyChainNetwork = require("../abi/SupplyChainNetwork.json");
+const productContract = require("../abi/ProductContract.json");
 const url = "http://127.0.0.1:7545";
 const provider = new Web3.providers.HttpProvider(url);
 const web3 = new Web3(provider);
