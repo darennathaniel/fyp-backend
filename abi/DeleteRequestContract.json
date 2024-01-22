@@ -18650,12 +18650,12 @@
     "5777": {
       "events": {},
       "links": {},
-      "address": "0xD2ef7bD277dfcFbfBf76aE68a8E587282C816CF5",
-      "transactionHash": "0xace7a5dc074682fb62c1b0096e746ec19ad9b641f496aa24138efd13198f5650"
+      "address": "0x464228202ABfBeE941e50A0B4BD2fB83B3f06433",
+      "transactionHash": "0x6992db17bb46af0203baab22abc2f00264b74910766f39483d83b2ac69682826"
     }
   },
   "schemaVersion": "3.4.15",
-  "updatedAt": "2024-01-11T15:20:07.756Z",
+  "updatedAt": "2024-01-22T07:53:08.650Z",
   "networkType": "ethereum",
   "devdoc": {
     "kind": "dev",

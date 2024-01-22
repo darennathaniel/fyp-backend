@@ -45,6 +45,27 @@ router.get("/", token_verification, async (req, res) => {
     });
   }
 });
+
+router.get("/landing", token_verification, async (req, res) => {
+  try {
+    const company = await sc_contract.methods
+      .getCompany(req.wallet_address)
+      .call();
+    const response = {
+      incomingContract: company.incomingContract.length,
+      incomingRequests: company.incomingRequests.length,
+    };
+    return res.status(200).json({
+      data: [response],
+      message: "successfully obtained full info of data",
+    });
+  } catch (err) {
+    return res.status(400).json({
+      message: err.message,
+    });
+  }
+});
+
 router.get("/all", token_verification, async (req, res) => {
   try {
     const users = await User.find();
