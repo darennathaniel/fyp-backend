@@ -312,6 +312,43 @@ router.get("/prerequisite", async (req, res) => {
   }
 });
 
+router.get("/prerequisite/my", token_verification, async (req, res) => {
+  try {
+    const company = company_deserializer(
+      await sc_contract.methods.getCompany(req.wallet_address).call()
+    );
+    const response = await Promise.all(
+      company.downstream.map(async (company_product) => {
+        const company_user = await User.findOne({
+          wallet_address: company_product.companyId,
+        });
+        const product = product_deserializer(
+          await p_contract.methods.getProduct(company_product.productId).call()
+        );
+        const supply = supply_deserializer(
+          await sc_contract.methods
+            .getPrerequisiteSupply(company_product.productId)
+            .call({ from: req.wallet_address })
+        );
+        return {
+          owner: `${company_user.company_name} - ${company_user.wallet_address}`,
+          ...product,
+          ...supply,
+        };
+      })
+    );
+    return res.status(200).json({
+      message:
+        "successfully obtained all prerequisite supply details for a company",
+      data: [response],
+    });
+  } catch (err) {
+    return res.status(400).json({
+      message: err.message,
+    });
+  }
+});
+
 router.post("/", token_verification, async (req, res) => {
   if (!req.body.product_name)
     return res.status(400).json({
