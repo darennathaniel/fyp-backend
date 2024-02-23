@@ -461,6 +461,16 @@ router.post("/", token_verification, async (req, res) => {
       await sc_contract.methods.getCompany(req.wallet_address).call()
     );
     if (
+      company.outgoingContract.some(
+        (company_contract) =>
+          company_contract.to === req.body.to &&
+          company_contract.productId === req.body.product_id
+      )
+    )
+      return res.status(400).json({
+        message: "sending the same contract is not allowed!",
+      });
+    if (
       company.downstream.some(
         (company_product) =>
           company_product.companyId === req.body.to &&
@@ -468,7 +478,7 @@ router.post("/", token_verification, async (req, res) => {
       )
     )
       return res.status(400).json({
-        message: "sending the same contract is not allowed!",
+        message: "sending a contract to an existing partner is not allowed!",
       });
     await sc_contract.methods
       .sendContract({

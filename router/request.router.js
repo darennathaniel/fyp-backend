@@ -423,18 +423,28 @@ router.post("/", token_verification, async (req, res) => {
     return res.status(400).json({
       message: "cannot send request to self",
     });
-  const downstream = company_deserializer(
-    await sc_contract.methods.getCompany(req.wallet_address).call()
-  ).downstream;
-  if (
-    downstream.filter((company) => company.companyId === req.body.to).length ===
-    0
-  )
-    return res.status(400).json({
-      message: `you have no partnership with company ${req.body.to}`,
-    });
   const id = parseInt(crypto.randomBytes(2).toString("hex"), 16);
   try {
+    const company = company_deserializer(
+      await sc_contract.methods.getCompany(req.wallet_address).call()
+    );
+    if (
+      company.downstream.filter((company) => company.companyId === req.body.to)
+        .length === 0
+    )
+      return res.status(400).json({
+        message: `you have no partnership with company ${req.body.to}`,
+      });
+    if (
+      company.outgoingRequests.filter(
+        (company_contract) =>
+          company_contract.to === req.body.to &&
+          company_contract.productId === req.body.product_id
+      ).length > 0
+    )
+      return res.status(400).json({
+        message: `you have a pending request already sent to ${req.body.to} for the same product`,
+      });
     await sc_contract.methods
       .sendRequest({
         id,

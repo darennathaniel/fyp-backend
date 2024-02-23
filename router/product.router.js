@@ -470,6 +470,13 @@ router.post("/no_recipe", token_verification, async (req, res) => {
         message: "product Name does not exist in body",
       });
     try {
+      const find_existing_request = await ProductRequest.find({
+        company: req.wallet_address,
+      });
+      if (find_existing_request.length > 2)
+        return res.status(400).json({
+          message: "you are limited to 3 product request",
+        });
       const request = await ProductRequest.create({
         productId: req.body.product_id,
         productName: req.body.product_name,
@@ -494,6 +501,13 @@ router.post("/no_recipe", token_verification, async (req, res) => {
       message: "product Name does note exist in body",
     });
   try {
+    const find_existing_request = await ProductRequest.find({
+      company: req.wallet_address,
+    });
+    if (find_existing_request.length > 2)
+      return res.status(400).json({
+        message: "you are limited to 3 product request",
+      });
     const request = await ProductRequest.create({
       productName: req.body.product_name,
       company: req.wallet_address,
