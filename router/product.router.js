@@ -574,7 +574,6 @@ router.post("/no_recipe/approve", token_verification, async (req, res) => {
       data: [product_deserializer(product)],
     });
   } catch (err) {
-    console.log(err);
     return res.status(400).json({
       message: err.message,
     });
@@ -600,8 +599,8 @@ router.post("/no_recipe/decline", token_verification, async (req, res) => {
     request.progress = "declined";
     request.save();
     return res.status(200).json({
-      message: "product has been created",
-      data: [product_deserializer(product)],
+      message: "product request has been declined",
+      data: [],
     });
   } catch (err) {
     return res.status(400).json({
