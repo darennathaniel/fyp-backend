@@ -146,7 +146,7 @@ router.post("/prerequisite", token_verification, async (req, res) => {
       message: "prerequisite supply converted to product supply",
       data: [
         {
-          ...supply,
+          ...supply._doc,
           product: product_deserializer(
             await p_contract.methods.getProduct(req.body.product_id).call()
           ),

@@ -431,7 +431,7 @@ router.post("/", token_verification, async (req, res) => {
     0
   )
     return res.status(400).json({
-      message: `you have no request with company ${req.body.to}`,
+      message: `you have no partnership with company ${req.body.to}`,
     });
   const id = parseInt(crypto.randomBytes(2).toString("hex"), 16);
   try {
