@@ -7,6 +7,8 @@ const product_deserializer = require("../utils/product_deserializer");
 const recipe_deserializer = require("../utils/recipe_deserializer");
 const supply_deserializer = require("../utils/supply_deserializer");
 const company_deserializer = require("../utils/company_deserializer");
+const company_delete_request_deserializer = require("../utils/company_delete_request_deserializer");
+const delete_request_event_deserializer = require("../utils/delete_request_event_deserializer");
 const User = require("../schema/User.model");
 const ProductRequest = require("../schema/ProductRequest.model");
 
@@ -679,6 +681,304 @@ router.get("/no_recipe", token_verification, async (req, res) => {
     return res.status(400).json({
       message: err.message,
     });
+  }
+});
+
+function create_code() {
+  let result = "";
+  const characters =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  const charactersLength = characters.length;
+  let counter = 0;
+  while (counter < 4) {
+    result += characters.charAt(Math.floor(Math.random() * charactersLength));
+    counter += 1;
+  }
+  return result;
+}
+
+router.delete("/", token_verification, async (req, res) => {
+  if (!req.query.request_id)
+    return res.status(400).json({
+      message: "request ID does not exist in query",
+    });
+  if (!req.query.product_id)
+    return res.status(400).json({
+      message: "product ID does not exist in query",
+    });
+  if (!req.query.code)
+    return res.status(400).json({
+      message: "code does not exist in query",
+    });
+  try {
+    const company = company_delete_request_deserializer(
+      await delete_contract.methods.getCompany(req.wallet_address).call()
+    );
+    const upstream_left = company.upstream.filter(
+      (company_product) => company_product.productId !== req.query.product_id
+    );
+    await delete_contract.methods
+      .deleteSupply(
+        req.query.request_id,
+        req.query.product_id,
+        upstream_left,
+        req.query.code
+      )
+      .send({ from: req.wallet_address, gas: "6721975" });
+    await sc_contract.methods
+      .deleteSupply(
+        req.query.request_id,
+        req.query.product_id,
+        upstream_left,
+        req.query.code
+      )
+      .send({ from: req.wallet_address, gas: "6721975" });
+    return res.status(200).json({
+      message: "product deleted",
+      data: [],
+    });
+  } catch (err) {
+    return res.status(400).json({
+      message: err.message,
+    });
+  }
+});
+
+router.post("/delete_request", token_verification, async (req, res) => {
+  if (!req.body.product_id)
+    return res.status(400).json({
+      message: "product ID does not exist in body",
+    });
+  try {
+    const id = parseInt(crypto.randomBytes(2).toString("hex"), 16);
+    const code = create_code();
+    await delete_contract.methods
+      .sendDeleteRequest(id, req.body.product_id, code)
+      .send({ from: req.wallet_address, gas: "6721975" });
+    await sc_contract.methods
+      .sendDeleteRequest(id, req.body.product_id, code)
+      .send({ from: req.wallet_address, gas: "6721975" });
+    return res.status(200).json({
+      message: `delete request for product ${req.body.product_id} has been sent`,
+      data: [],
+    });
+  } catch (err) {
+    return res.status(400).json({
+      message: err.message,
+    });
+  }
+});
+
+router.post("/delete_request/approve", token_verification, async (req, res) => {
+  if (!req.body.request_id)
+    return res.status(400).json({
+      message: "request ID does not exist in body",
+    });
+  if (!req.body.product_id)
+    return res.status(400).json({
+      message: "product ID does not exist in body",
+    });
+  if (!req.body.code)
+    return res.status(400).json({
+      message: "code does not exist in body",
+    });
+  if (!req.body.request_owner)
+    return res.status(400).json({
+      message: "code does not exist in body",
+    });
+  try {
+    await delete_contract.methods
+      .respondDeleteRequest(
+        req.body.request_id,
+        req.body.product_id,
+        req.wallet_address,
+        true,
+        req.body.code
+      )
+      .send({ from: req.wallet_address, gas: "6721975" });
+    await sc_contract.methods
+      .addApproval(req.body.request_id, req.body.code, req.body.request_owner)
+      .send({ from: req.wallet_address, gas: "6721975" });
+    return res.status(200).json({
+      message: "delete request successfully approved",
+    });
+  } catch (err) {
+    return res.status(400).json({
+      message: err.message,
+    });
+  }
+});
+
+router.post("/delete_request/decline", token_verification, async (req, res) => {
+  if (!req.body.request_id)
+    return res.status(400).json({
+      message: "request ID does not exist in body",
+    });
+  if (!req.body.product_id)
+    return res.status(400).json({
+      message: "product ID does not exist in body",
+    });
+  if (!req.body.code)
+    return res.status(400).json({
+      message: "code does not exist in body",
+    });
+  try {
+    await delete_contract.methods
+      .respondDeleteRequest(
+        req.body.request_id,
+        req.body.product_id,
+        req.wallet_address,
+        false,
+        req.body.code
+      )
+      .send({ from: req.wallet_address, gas: "6721975" });
+    return res.status(200).json({
+      message: "delete request successfully declined",
+    });
+  } catch (err) {
+    return res.status(400).json({
+      message: err.message,
+    });
+  }
+});
+
+router.get("/delete_request/incoming", token_verification, async (req, res) => {
+  const { timeline = "current" } = req.query;
+  if (timeline === "current") {
+    try {
+      const company = company_delete_request_deserializer(
+        await delete_contract.methods.getCompany(req.wallet_address).call()
+      );
+      const incoming_request = await Promise.all(
+        company.incomingDeleteRequests.map(async (request) => {
+          const product = product_deserializer(
+            await p_contract.methods.getProduct(request.productId).call()
+          );
+          const owner = await User.findOne({
+            wallet_address: request.owner,
+          });
+          return {
+            id: request.id,
+            product,
+            owner,
+            code: request.code,
+          };
+        })
+      );
+      return res.status(200).json({
+        message: "incoming delete requests obtained",
+        data: [incoming_request],
+      });
+    } catch (err) {
+      return res.status(400).json({
+        message: err.message,
+      });
+    }
+  } else {
+    try {
+      const past_delete_requests = delete_request_event_deserializer(
+        await sc_contract.getPastEvents("DeleteRequests", {
+          filter: { from: req.wallet_address },
+          fromBlock: 0,
+          toBlock: "latest",
+        })
+      );
+      const incoming_request = await Promise.all(
+        past_delete_requests.map(async (request) => {
+          const product = product_deserializer(
+            await p_contract.methods.getProduct(request.productId).call()
+          );
+          const owner = await User.findOne({
+            wallet_address: request.from,
+          });
+          return {
+            id: request.id,
+            product,
+            owner,
+          };
+        })
+      );
+      return res.status(200).json({
+        message: "outgoing delete requests obtained",
+        data: [incoming_request],
+      });
+    } catch (err) {
+      return res.status(400).json({
+        message: err.message,
+      });
+    }
+  }
+});
+
+router.get("/delete_request/outgoing", token_verification, async (req, res) => {
+  const { timeline = "current" } = req.query;
+  if (timeline === "current") {
+    try {
+      const company = company_delete_request_deserializer(
+        await delete_contract.methods.getCompany(req.wallet_address).call()
+      );
+      const outgoing_request = await Promise.all(
+        company.outgoingDeleteRequests.map(async (request) => {
+          const product = product_deserializer(
+            await p_contract.methods.getProduct(request.productId).call()
+          );
+          const enough_approval = await delete_contract.methods
+            .checkEnoughApproval(request.id)
+            .call();
+          const owner = await User.findOne({
+            wallet_address: request.owner,
+          });
+          return {
+            id: request.id,
+            product,
+            owner,
+            code: request.code,
+            enough_approval,
+          };
+        })
+      );
+      return res.status(200).json({
+        message: "outgoing delete requests obtained",
+        data: [outgoing_request],
+      });
+    } catch (err) {
+      return res.status(400).json({
+        message: err.message,
+      });
+    }
+  } else {
+    try {
+      const past_delete_requests = delete_request_event_deserializer(
+        await sc_contract.getPastEvents("DeleteRequests", {
+          filter: { from: req.wallet_address },
+          fromBlock: 0,
+          toBlock: "latest",
+        })
+      );
+      const outgoing_request = await Promise.all(
+        past_delete_requests.map(async (request) => {
+          const product = product_deserializer(
+            await p_contract.methods.getProduct(request.productId).call()
+          );
+          const owner = await User.findOne({
+            wallet_address: request.from,
+          });
+          return {
+            id: request.id,
+            product,
+            owner,
+          };
+        })
+      );
+      return res.status(200).json({
+        message: "outgoing delete requests obtained",
+        data: [outgoing_request],
+      });
+    } catch (err) {
+      return res.status(400).json({
+        message: err.message,
+      });
+    }
   }
 });
 
