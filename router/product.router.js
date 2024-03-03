@@ -13,6 +13,7 @@ const ProductRequest = require("../schema/ProductRequest.model");
 const { Web3 } = require("web3");
 const supplyChainNetwork = require("../abi/SupplyChainNetwork.json");
 const productContract = require("../abi/ProductContract.json");
+const deleteContract = require("../abi/DeleteRequestContract.json");
 const url = "http://127.0.0.1:7545";
 const provider = new Web3.providers.HttpProvider(url);
 const web3 = new Web3(provider);
@@ -23,6 +24,10 @@ const sc_contract = new web3.eth.Contract(
 const p_contract = new web3.eth.Contract(
   productContract.abi,
   productContract.networks[5777].address
+);
+const delete_contract = new web3.eth.Contract(
+  deleteContract.abi,
+  deleteContract.networks[5777].address
 );
 
 router.get("/", async (req, res) => {
@@ -405,6 +410,9 @@ router.post("/", token_verification, async (req, res) => {
       await sc_contract.methods
         .addProductOwner(req.body.product_id, req.body.product_name)
         .send({ from: req.wallet_address, gas: "6721975" });
+      await delete_contract.methods
+        .addProduct(req.body.product_id, req.wallet_address)
+        .send({ from: req.wallet_address, gas: "6721975" });
       const product = await p_contract.methods
         .getProduct(req.body.product_id)
         .call();
@@ -444,6 +452,9 @@ router.post("/", token_verification, async (req, res) => {
       });
     await sc_contract.methods
       .addProduct(id, req.body.product_name, req.wallet_address)
+      .send({ from: req.wallet_address, gas: "6721975" });
+    await delete_contract.methods
+      .addProduct(id, req.wallet_address)
       .send({ from: req.wallet_address, gas: "6721975" });
     const product = await p_contract.methods.getProduct(id).call();
     return res.status(200).json({
@@ -550,6 +561,9 @@ router.post("/no_recipe/approve", token_verification, async (req, res) => {
       await sc_contract.methods
         .addProductOwner(request.productId, request.productName)
         .send({ from: request.company, gas: "6721975" });
+      await delete_contract.methods
+        .addProduct(request.productId, request.company)
+        .send({ from: req.wallet_address, gas: "6721975" });
       request.updated_at = new Date();
       request.progress = "approved";
       request.save();
@@ -564,6 +578,9 @@ router.post("/no_recipe/approve", token_verification, async (req, res) => {
       .send({ from: req.wallet_address, gas: "6721975" });
     await sc_contract.methods
       .addProduct(id, request.productName, request.company)
+      .send({ from: req.wallet_address, gas: "6721975" });
+    await delete_contract.methods
+      .addProduct(id, req.company)
       .send({ from: req.wallet_address, gas: "6721975" });
     request.updated_at = new Date();
     request.progress = "approved";

@@ -8,6 +8,7 @@ const company_deserializer = require("../utils/company_deserializer");
 const { Web3 } = require("web3");
 const supplyChainNetwork = require("../abi/SupplyChainNetwork.json");
 const productContract = require("../abi/ProductContract.json");
+const deleteContract = require("../abi/DeleteRequestContract.json");
 const url = "http://127.0.0.1:7545";
 const provider = new Web3.providers.HttpProvider(url);
 const web3 = new Web3(provider);
@@ -18,6 +19,10 @@ const sc_contract = new web3.eth.Contract(
 const p_contract = new web3.eth.Contract(
   productContract.abi,
   productContract.networks[5777].address
+);
+const delete_contract = new web3.eth.Contract(
+  deleteContract.abi,
+  deleteContract.networks[5777].address
 );
 
 router.post("/", token_verification, async (req, res) => {
@@ -54,6 +59,9 @@ router.post("/", token_verification, async (req, res) => {
       .addCompany(req.body.owner, req.body.company_name)
       .send({ from: req.wallet_address, gas: "6721975" });
     await p_contract.methods
+      .addCompany(req.body.owner)
+      .send({ from: req.wallet_address, gas: "6721975" });
+    await delete_contract.methods
       .addCompany(req.body.owner)
       .send({ from: req.wallet_address, gas: "6721975" });
     const company = company_deserializer(
