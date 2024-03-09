@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const Supply = require("../schema/Supply.model");
+const User = require("../schema/User.model");
 const token_verification = require("../middleware/token_verification");
 const product_deserializer = require("../utils/product_deserializer");
 const supply_deserializer = require("../utils/supply_deserializer");
@@ -178,9 +179,14 @@ router.get("/product", async (req, res) => {
         .call({ from: req.query.company_address })
     );
     const supplies = await Promise.all(
-      supply.supplyId.map(
-        async (supply_id) => await Supply.findOne({ supplyId: supply_id })
-      )
+      supply.supplyId.map(async (supply_id) => {
+        const supply = await Supply.findOne({ supplyId: supply_id });
+        const user = await User.findOne({ wallet_address: supply.owner });
+        return {
+          supply,
+          user,
+        };
+      })
     );
     return res.status(200).json({
       message: "product supply retrieved",
@@ -257,11 +263,13 @@ router.get("/", async (req, res) => {
     const count = await Supply.countDocuments();
     const supplies = await Promise.all(
       supplies_schema.map(async (supply) => {
+        const user = await User.findOne({ wallet_address: supply.owner });
         return {
           ...supply._doc,
           product: product_deserializer(
             await p_contract.methods.getProduct(supply.productId).call()
           ),
+          user,
         };
       })
     );

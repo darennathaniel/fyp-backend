@@ -3,8 +3,9 @@ module.exports = (events) => {
     const event = data.returnValues;
     return {
       requestId: Number(event.requestId),
+      owner: event.owner,
+      responder: event.responder,
       productId: Number(event.productId),
-      from: event.from,
       state: Number(event.state) === 1 ? "rejected" : "approved",
       timestamp: new Date(Number(event.timestamp) * 1000),
     };

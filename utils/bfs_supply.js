@@ -17,6 +17,7 @@ const crypto = require("crypto");
 const past_supply_deserializer = require("./past_supply_deserializer");
 const product_deserializer = require("./product_deserializer");
 const Supply = require("../schema/Supply.model");
+const User = require("../schema/User.model");
 
 module.exports = async (start_node, x) => {
   const visited = {}; // To keep track of visited nodes
@@ -40,6 +41,7 @@ module.exports = async (start_node, x) => {
         const product = product_deserializer(
           await p_contract.methods.getProduct(supply.productId).call()
         );
+        const user = await User.findOne({ wallet_address: supply.owner });
         supplies.push({
           ...supply._doc,
           id: supply.supplyId.toString(),
@@ -48,9 +50,10 @@ module.exports = async (start_node, x) => {
             y: level * y_spacing,
           },
           product,
+          user,
           data: {
             label: `${product.productName}`,
-            meta: { ...supply._doc, product },
+            meta: { ...supply._doc, product, user },
           },
           type: "customNode",
         });
