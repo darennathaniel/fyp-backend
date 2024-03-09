@@ -242,6 +242,9 @@ router.get("/my", token_verification, async (req, res) => {
     const company = company_deserializer(
       await sc_contract.methods.getCompany(req.wallet_address).call()
     );
+    const company_delete_request = company_delete_request_deserializer(
+      await delete_contract.methods.getCompany(req.wallet_address).call()
+    );
     const response = await Promise.all(
       company.listOfSupply.map(async (product_id) => {
         const product = product_deserializer(
@@ -264,6 +267,10 @@ router.get("/my", token_verification, async (req, res) => {
         return {
           ...product,
           ...supply,
+          delete_request:
+            company_delete_request.outgoingDeleteRequests.filter(
+              (request) => request.productId === product_id
+            ).length > 0,
         };
       })
     );
@@ -582,7 +589,7 @@ router.post("/no_recipe/approve", token_verification, async (req, res) => {
       .addProduct(id, request.productName, request.company)
       .send({ from: req.wallet_address, gas: "6721975" });
     await delete_contract.methods
-      .addProduct(id, req.company)
+      .addProduct(id, request.company)
       .send({ from: req.wallet_address, gas: "6721975" });
     request.updated_at = new Date();
     request.progress = "approved";
@@ -733,6 +740,9 @@ router.delete("/", token_verification, async (req, res) => {
         req.query.code
       )
       .send({ from: req.wallet_address, gas: "6721975" });
+    await p_contract.methods
+      .deleteProductOwner(req.query.product_id)
+      .send({ from: req.wallet_address, gas: "6721975" });
     return res.status(200).json({
       message: "product deleted",
       data: [],
@@ -877,8 +887,8 @@ router.get("/delete_request/incoming", token_verification, async (req, res) => {
   } else {
     try {
       const past_delete_requests = delete_request_event_deserializer(
-        await sc_contract.getPastEvents("DeleteRequests", {
-          filter: { from: req.wallet_address },
+        await delete_contract.getPastEvents("DeleteRequests", {
+          filter: { responder: req.wallet_address },
           fromBlock: 0,
           toBlock: "latest",
         })
@@ -889,13 +899,19 @@ router.get("/delete_request/incoming", token_verification, async (req, res) => {
             await p_contract.methods.getProduct(request.productId).call()
           );
           const owner = await User.findOne({
-            wallet_address: request.from,
+            wallet_address: request.owner,
           });
-          return {
-            id: request.id,
-            product,
-            owner,
-          };
+          const responder = await User.findOne({
+            wallet_address: request.responder,
+          });
+          if (request.owner !== request.responder)
+            return {
+              id: request.id,
+              product,
+              responder,
+              owner,
+              state: request.state,
+            };
         })
       );
       return res.status(200).json({
@@ -924,7 +940,7 @@ router.get("/delete_request/outgoing", token_verification, async (req, res) => {
           );
           const enough_approval = await delete_contract.methods
             .checkEnoughApproval(request.id)
-            .call();
+            .call({ from: req.wallet_address });
           const owner = await User.findOne({
             wallet_address: request.owner,
           });
@@ -934,6 +950,8 @@ router.get("/delete_request/outgoing", token_verification, async (req, res) => {
             owner,
             code: request.code,
             enough_approval,
+            approvals: request.approvals.length,
+            upstream: company.upstream.length,
           };
         })
       );
@@ -949,8 +967,8 @@ router.get("/delete_request/outgoing", token_verification, async (req, res) => {
   } else {
     try {
       const past_delete_requests = delete_request_event_deserializer(
-        await sc_contract.getPastEvents("DeleteRequests", {
-          filter: { from: req.wallet_address },
+        await delete_contract.getPastEvents("DeleteRequests", {
+          filter: { owner: req.wallet_address, responder: req.wallet_address },
           fromBlock: 0,
           toBlock: "latest",
         })
@@ -961,12 +979,14 @@ router.get("/delete_request/outgoing", token_verification, async (req, res) => {
             await p_contract.methods.getProduct(request.productId).call()
           );
           const owner = await User.findOne({
-            wallet_address: request.from,
+            wallet_address: request.owner,
           });
           return {
             id: request.id,
             product,
+            responder: owner,
             owner,
+            state: request.state,
           };
         })
       );
