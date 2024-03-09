@@ -724,6 +724,20 @@ router.delete("/", token_verification, async (req, res) => {
     const upstream_left = company.upstream.filter(
       (company_product) => company_product.productId !== req.query.product_id
     );
+    let head_companies = [];
+    const head_companies_length = await sc_contract.methods
+      .getHeadCompaniesLength()
+      .call();
+    for (let i = 0; i < head_companies_length; i++) {
+      head_companies.push(await sc_contract.methods.headCompanies(i).call());
+    }
+    let is_head_company = false;
+    if (
+      head_companies.filter((company) => company.owner === req.wallet_address)
+        .length > 0
+    ) {
+      is_head_company = true;
+    }
     await delete_contract.methods
       .deleteSupply(
         req.query.request_id,
@@ -737,7 +751,8 @@ router.delete("/", token_verification, async (req, res) => {
         req.query.request_id,
         req.query.product_id,
         upstream_left,
-        req.query.code
+        req.query.code,
+        is_head_company
       )
       .send({ from: req.wallet_address, gas: "6721975" });
     await p_contract.methods
@@ -893,8 +908,11 @@ router.get("/delete_request/incoming", token_verification, async (req, res) => {
           toBlock: "latest",
         })
       );
+      const filtered_past_delete_requests = past_delete_requests.filter(
+        (request) => request.owner !== request.responder
+      );
       const incoming_request = await Promise.all(
-        past_delete_requests.map(async (request) => {
+        filtered_past_delete_requests.map(async (request) => {
           const product = product_deserializer(
             await p_contract.methods.getProduct(request.productId).call()
           );
@@ -904,18 +922,17 @@ router.get("/delete_request/incoming", token_verification, async (req, res) => {
           const responder = await User.findOne({
             wallet_address: request.responder,
           });
-          if (request.owner !== request.responder)
-            return {
-              id: request.id,
-              product,
-              responder,
-              owner,
-              state: request.state,
-            };
+          return {
+            id: request.requestId,
+            product,
+            responder,
+            owner,
+            state: request.state,
+          };
         })
       );
       return res.status(200).json({
-        message: "outgoing delete requests obtained",
+        message: "incoming delete requests obtained",
         data: [incoming_request],
       });
     } catch (err) {
@@ -982,7 +999,7 @@ router.get("/delete_request/outgoing", token_verification, async (req, res) => {
             wallet_address: request.owner,
           });
           return {
-            id: request.id,
+            id: request.requestId,
             product,
             responder: owner,
             owner,
