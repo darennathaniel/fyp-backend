@@ -11,6 +11,7 @@ const company_delete_request_deserializer = require("../utils/company_delete_req
 const delete_request_event_deserializer = require("../utils/delete_request_event_deserializer");
 const User = require("../schema/User.model");
 const ProductRequest = require("../schema/ProductRequest.model");
+const Supply = require("../schema/Supply.model");
 
 const { Web3 } = require("web3");
 const supplyChainNetwork = require("../abi/SupplyChainNetwork.json");
@@ -331,6 +332,22 @@ router.get("/prerequisite/my", token_verification, async (req, res) => {
     const company = company_deserializer(
       await sc_contract.methods.getCompany(req.wallet_address).call()
     );
+    const no_owner_response = await Promise.all(
+      company.listOfPrerequisites.map(async (prerequisite_supply) => {
+        const product = product_deserializer(
+          await p_contract.methods.getProduct(prerequisite_supply).call()
+        );
+        const supply = supply_deserializer(
+          await sc_contract.methods
+            .getPrerequisiteSupply(prerequisite_supply)
+            .call({ from: req.wallet_address })
+        );
+        return {
+          ...product,
+          ...supply,
+        };
+      })
+    );
     const response = await Promise.all(
       company.downstream.map(async (company_product) => {
         const company_user = await User.findOne({
@@ -354,7 +371,7 @@ router.get("/prerequisite/my", token_verification, async (req, res) => {
     return res.status(200).json({
       message:
         "successfully obtained all prerequisite supply details for a company",
-      data: [response],
+      data: [[...response, ...no_owner_response]],
     });
   } catch (err) {
     return res.status(400).json({
@@ -722,7 +739,8 @@ router.delete("/", token_verification, async (req, res) => {
       await delete_contract.methods.getCompany(req.wallet_address).call()
     );
     const upstream_left = company.upstream.filter(
-      (company_product) => company_product.productId !== req.query.product_id
+      (company_product) =>
+        company_product.productId !== parseInt(req.query.product_id)
     );
     let head_companies = [];
     const head_companies_length = await sc_contract.methods
@@ -775,6 +793,15 @@ router.post("/delete_request", token_verification, async (req, res) => {
       message: "product ID does not exist in body",
     });
   try {
+    const supply = supply_deserializer(
+      await sc_contract.methods
+        .getPrerequisiteSupply(req.body.product_id)
+        .call({ from: req.wallet_address })
+    );
+    if (supply.total > 0)
+      return res.status(400).json({
+        message: "there's still supply left in your inventory!",
+      });
     const id = parseInt(crypto.randomBytes(2).toString("hex"), 16);
     const code = create_code();
     await delete_contract.methods
@@ -809,14 +836,14 @@ router.post("/delete_request/approve", token_verification, async (req, res) => {
     });
   if (!req.body.request_owner)
     return res.status(400).json({
-      message: "code does not exist in body",
+      message: "request owner does not exist in body",
     });
   try {
     await delete_contract.methods
       .respondDeleteRequest(
         req.body.request_id,
         req.body.product_id,
-        req.wallet_address,
+        req.body.request_owner,
         true,
         req.body.code
       )
@@ -847,12 +874,16 @@ router.post("/delete_request/decline", token_verification, async (req, res) => {
     return res.status(400).json({
       message: "code does not exist in body",
     });
+  if (!req.body.request_owner)
+    return res.status(400).json({
+      message: "request owner does not exist in body",
+    });
   try {
     await delete_contract.methods
       .respondDeleteRequest(
         req.body.request_id,
         req.body.product_id,
-        req.wallet_address,
+        req.body.request_owner,
         false,
         req.body.code
       )
