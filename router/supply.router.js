@@ -143,6 +143,16 @@ router.post("/prerequisite", token_verification, async (req, res) => {
       timestamp: new Date(),
       owner: req.wallet_address,
     });
+    const updated_prerequisite_quantities = await Promise.all(
+      prerequisite_product_ids.map(async (product_id) => {
+        const prerequisite_supply = supply_deserializer(
+          await sc_contract.methods
+            .getPrerequisiteSupply(product_id)
+            .call({ from: req.wallet_address })
+        );
+        return { ...prerequisite_supply, productId: product_id };
+      })
+    );
     return res.status(200).json({
       message: "prerequisite supply converted to product supply",
       data: [
@@ -151,6 +161,7 @@ router.post("/prerequisite", token_verification, async (req, res) => {
           product: product_deserializer(
             await p_contract.methods.getProduct(req.body.product_id).call()
           ),
+          updated_prerequisite_quantities,
         },
       ],
     });

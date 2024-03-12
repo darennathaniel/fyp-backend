@@ -265,13 +265,15 @@ router.get("/my", token_verification, async (req, res) => {
             quantities: [],
           };
         }
+        const delete_request =
+          company_delete_request.outgoingDeleteRequests.filter(
+            (request) => request.productId === product_id
+          );
         return {
           ...product,
           ...supply,
           delete_request:
-            company_delete_request.outgoingDeleteRequests.filter(
-              (request) => request.productId === product_id
-            ).length > 0,
+            delete_request.length > 0 && !delete_request[0].rejected,
         };
       })
     );
@@ -332,22 +334,6 @@ router.get("/prerequisite/my", token_verification, async (req, res) => {
     const company = company_deserializer(
       await sc_contract.methods.getCompany(req.wallet_address).call()
     );
-    const no_owner_response = await Promise.all(
-      company.listOfPrerequisites.map(async (prerequisite_supply) => {
-        const product = product_deserializer(
-          await p_contract.methods.getProduct(prerequisite_supply).call()
-        );
-        const supply = supply_deserializer(
-          await sc_contract.methods
-            .getPrerequisiteSupply(prerequisite_supply)
-            .call({ from: req.wallet_address })
-        );
-        return {
-          ...product,
-          ...supply,
-        };
-      })
-    );
     const response = await Promise.all(
       company.downstream.map(async (company_product) => {
         const company_user = await User.findOne({
@@ -363,6 +349,28 @@ router.get("/prerequisite/my", token_verification, async (req, res) => {
         );
         return {
           owner: `${company_user.company_name} - ${company_user.wallet_address}`,
+          ...product,
+          ...supply,
+        };
+      })
+    );
+    const remove_duplicates_from_response = company.listOfPrerequisites.filter(
+      (product_id) => {
+        return !response.some((product) => product.productId === product_id);
+      }
+    );
+    const remove_duplicates = [...new Set(remove_duplicates_from_response)];
+    const no_owner_response = await Promise.all(
+      remove_duplicates.map(async (prerequisite_supply) => {
+        const product = product_deserializer(
+          await p_contract.methods.getProduct(prerequisite_supply).call()
+        );
+        const supply = supply_deserializer(
+          await sc_contract.methods
+            .getPrerequisiteSupply(prerequisite_supply)
+            .call({ from: req.wallet_address })
+        );
+        return {
           ...product,
           ...supply,
         };
@@ -795,7 +803,7 @@ router.post("/delete_request", token_verification, async (req, res) => {
   try {
     const supply = supply_deserializer(
       await sc_contract.methods
-        .getPrerequisiteSupply(req.body.product_id)
+        .getSupply(req.body.product_id)
         .call({ from: req.wallet_address })
     );
     if (supply.total > 0)
@@ -982,26 +990,28 @@ router.get("/delete_request/outgoing", token_verification, async (req, res) => {
         await delete_contract.methods.getCompany(req.wallet_address).call()
       );
       const outgoing_request = await Promise.all(
-        company.outgoingDeleteRequests.map(async (request) => {
-          const product = product_deserializer(
-            await p_contract.methods.getProduct(request.productId).call()
-          );
-          const enough_approval = await delete_contract.methods
-            .checkEnoughApproval(request.id)
-            .call({ from: req.wallet_address });
-          const owner = await User.findOne({
-            wallet_address: request.owner,
-          });
-          return {
-            id: request.id,
-            product,
-            owner,
-            code: request.code,
-            enough_approval,
-            approvals: request.approvals.length,
-            upstream: company.upstream.length,
-          };
-        })
+        company.outgoingDeleteRequests
+          .filter((check_rejected) => !check_rejected.rejected)
+          .map(async (request) => {
+            const product = product_deserializer(
+              await p_contract.methods.getProduct(request.productId).call()
+            );
+            const enough_approval = await delete_contract.methods
+              .checkEnoughApproval(request.id)
+              .call({ from: req.wallet_address });
+            const owner = await User.findOne({
+              wallet_address: request.owner,
+            });
+            return {
+              id: request.id,
+              product,
+              owner,
+              code: request.code,
+              enough_approval,
+              approvals: request.approvals.length,
+              upstream: company.upstream.length,
+            };
+          })
       );
       return res.status(200).json({
         message: "outgoing delete requests obtained",
