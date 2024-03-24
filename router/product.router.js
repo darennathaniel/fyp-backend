@@ -273,7 +273,7 @@ router.get("/my", token_verification, async (req, res) => {
           ...product,
           ...supply,
           delete_request:
-            delete_request.length > 0 && !delete_request[0].rejected,
+            delete_request.length > 0 && !delete_request[delete_request.length - 1].rejected,
         };
       })
     );
@@ -914,20 +914,22 @@ router.get("/delete_request/incoming", token_verification, async (req, res) => {
         await delete_contract.methods.getCompany(req.wallet_address).call()
       );
       const incoming_request = await Promise.all(
-        company.incomingDeleteRequests.map(async (request) => {
-          const product = product_deserializer(
-            await p_contract.methods.getProduct(request.productId).call()
-          );
-          const owner = await User.findOne({
-            wallet_address: request.owner,
-          });
-          return {
-            id: request.id,
-            product,
-            owner,
-            code: request.code,
-          };
-        })
+        company.incomingDeleteRequests
+          .filter((check_rejected) => !check_rejected.rejected)
+          .map(async (request) => {
+            const product = product_deserializer(
+              await p_contract.methods.getProduct(request.productId).call()
+            );
+            const owner = await User.findOne({
+              wallet_address: request.owner,
+            });
+            return {
+              id: request.id,
+              product,
+              owner,
+              code: request.code,
+            };
+          })
       );
       return res.status(200).json({
         message: "incoming delete requests obtained",
