@@ -46,7 +46,15 @@ router.post("/", token_verification, async (req, res) => {
     return res.status(403).json({
       message: "only network owners are allowed",
     });
+  const list_of_accounts = await web3.eth.getAccounts();
   try {
+    if (
+      list_of_accounts.filter((account) => account === req.body.owner)
+        .length === 0
+    )
+      return res.status(404).json({
+        message: "address does not exist in the ethereum system",
+      });
     await User.create({
       username: req.body.username,
       password: "zonk",
@@ -106,16 +114,28 @@ router.get("/", async (req, res) => {
   }
   try {
     let head_companies = [];
-    const head_companies_length = await sc_contract.methods
-      .getHeadCompaniesLength()
-      .call();
-    for (let i = 0; i < head_companies_length; i++) {
-      head_companies.push(await sc_contract.methods.headCompanies(i).call());
-    }
+    const list_of_accounts = await web3.eth.getAccounts();
+    const all_users = await User.find();
+    head_companies.push(
+      ...all_users.map((user) => {
+        return {
+          owner: user.wallet_address,
+          exist: true,
+          name: user.username,
+        };
+      })
+    );
     const result = { companies: [], edges: [], list_of_companies: [] };
     let x = 0;
     const x_offset = 400;
-    for (let i = 0; i < head_companies_length; i++) {
+    for (let i = 0; i < head_companies.length; i++) {
+      if (
+        result.companies.filter(
+          (company) => company.owner === head_companies[i].owner
+        ).length > 0 ||
+        head_companies[i].owner === list_of_accounts[0]
+      )
+        continue;
       const { companies, edges, list_of_companies } = await bfs(
         head_companies[i].owner,
         x,
@@ -134,7 +154,7 @@ router.get("/", async (req, res) => {
       });
       x += x_offset;
     }
-    res.status(200).json({
+    return res.status(200).json({
       message: "company result",
       data: [
         result.list_of_companies,

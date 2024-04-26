@@ -24,7 +24,7 @@ module.exports = async (start_node, x, custom) => {
   const y_spacing = 200;
 
   const companies = [];
-  const edges = [];
+  let edges = [];
   const list_of_companies = [];
 
   queue.push([start_node, 0]);
@@ -46,30 +46,34 @@ module.exports = async (start_node, x, custom) => {
         ).length === 0
       ) {
         list_of_companies.push(current_company);
+        companies.push({
+          ...current_company,
+          listOfSupply: await Promise.all(
+            current_company.listOfSupply.map(async (id) =>
+              product_deserializer(
+                await p_contract.methods.getProduct(id).call()
+              )
+            )
+          ),
+          listOfPrerequisites: await Promise.all(
+            current_company.listOfPrerequisites.map(async (id) =>
+              product_deserializer(
+                await p_contract.methods.getProduct(id).call()
+              )
+            )
+          ),
+          id: current_company.owner,
+          position: {
+            x: x + x_offset + i * x_spacing,
+            y: level * y_spacing,
+          },
+          data: {
+            label: current_company.name,
+            meta: current_company,
+          },
+          type: custom ? "customNode" : "default",
+        });
       }
-      companies.push({
-        ...current_company,
-        listOfSupply: await Promise.all(
-          current_company.listOfSupply.map(async (id) =>
-            product_deserializer(await p_contract.methods.getProduct(id).call())
-          )
-        ),
-        listOfPrerequisites: await Promise.all(
-          current_company.listOfPrerequisites.map(async (id) =>
-            product_deserializer(await p_contract.methods.getProduct(id).call())
-          )
-        ),
-        id: current_company.owner,
-        position: {
-          x: x + x_offset + i * x_spacing,
-          y: level * y_spacing,
-        },
-        data: {
-          label: current_company.name,
-          meta: current_company,
-        },
-        type: custom ? "customNode" : "default",
-      });
 
       const neighbors = current_company.downstream;
       for (let i = 0; i < neighbors.length; i++) {
@@ -77,6 +81,15 @@ module.exports = async (start_node, x, custom) => {
         const product = await p_contract.methods
           .getProduct(neighbors[i].productId)
           .call();
+        if (
+          edges.some(
+            (edge) =>
+              edge.source === current_company_address &&
+              edge.target === neighbor &&
+              edge.label.includes(product.productName)
+          )
+        )
+          continue;
         if (
           edges.some(
             (edge) =>
@@ -98,7 +111,35 @@ module.exports = async (start_node, x, custom) => {
             label: product.productName,
             sourceHandle: "top",
             targetHandle: "bottom",
+            type: edges.some(
+              (edge) =>
+                edge.source === neighbor &&
+                edge.target === current_company_address
+            )
+              ? "customEdge"
+              : "default",
           });
+          if (
+            edges.some(
+              (edge) =>
+                edge.source === neighbor &&
+                edge.target === current_company_address
+            )
+          ) {
+            const updatedEdges = edges.map((oldEdge) => {
+              if (
+                oldEdge.source === neighbor &&
+                oldEdge.target === current_company_address
+              ) {
+                return {
+                  ...oldEdge,
+                  type: "customEdge",
+                };
+              }
+              return oldEdge;
+            });
+            edges = updatedEdges;
+          }
         }
         if (!visited[`${neighbor} - ${product.productName}`]) {
           temp.push([neighbor, level + 1]); // Enqueue the neighbor

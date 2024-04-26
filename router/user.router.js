@@ -111,7 +111,8 @@ router.post("/login", async (req, res) => {
     }
     if (user.password === "zonk")
       return res.status(404).json({
-        message: "account hasn't been created",
+        message:
+          "account hasn't been created, please proceed to the register page",
       });
     const validation = await bcrypt.compare(password, user.password);
     if (!validation)
@@ -178,7 +179,8 @@ router.post("/register", async (req, res) => {
     });
     if (!user) {
       return res.status(404).json({
-        message: "user does not exist",
+        message:
+          "user does not exist, please contact Network Owner to register your company in the system.",
       });
     }
     if (user.password !== "zonk")
