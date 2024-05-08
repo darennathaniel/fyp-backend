@@ -33,7 +33,6 @@ module.exports = async (start_node, x) => {
   try {
     while (queue.length > 0) {
       let temp = [];
-      const x_offset = (-(queue.length - 1) * x_spacing) / 2;
       for (let i = 0; i < queue.length; i++) {
         const current_supply_id = queue[i][0]; // Dequeue the front node
         const level = queue[i][1];
@@ -42,22 +41,24 @@ module.exports = async (start_node, x) => {
           await p_contract.methods.getProduct(supply.productId).call()
         );
         const user = await User.findOne({ wallet_address: supply.owner });
-        supplies.push({
-          ...supply._doc,
-          id: supply.supplyId.toString(),
-          position: {
-            x: x + x_offset + i * x_spacing,
-            y: level * y_spacing,
-          },
-          product,
-          user,
-          data: {
-            label: `${product.productName}`,
-            meta: { ...supply._doc, product, user },
-          },
-          type: "customNode",
-        });
         try {
+          // console.log(x + x_offset + index * x_spacing);
+          const x_offset = (-(queue.length - 1) * x_spacing) / 2;
+          supplies.push({
+            ...supply._doc,
+            id: supply.supplyId.toString(),
+            position: {
+              x: x + x_offset + i * x_spacing,
+              y: level * y_spacing,
+            },
+            product,
+            user,
+            data: {
+              label: `${product.productName}`,
+              meta: { ...supply._doc, product, user },
+            },
+            type: "customNode",
+          });
           const current_supply = past_supply_deserializer(
             await sc_contract.methods.getPastSupply(current_supply_id).call()
           );
@@ -67,7 +68,7 @@ module.exports = async (start_node, x) => {
             const neighbor_supply = await Supply.findOne({
               supplyId: neighbor,
             });
-            if (!visited[neighbor_supply.productId]) {
+            if (!visited[`${neighbor_supply.productId} - ${level}`]) {
               edges.push({
                 id: crypto.randomBytes(16).toString("hex"),
                 source: current_supply_id.toString(),
@@ -83,14 +84,14 @@ module.exports = async (start_node, x) => {
                 // }`,
               });
               temp.push([neighbor, level + 1]); // Enqueue the neighbor
-              visited[neighbor_supply.productId] = true; // Mark neighbor as visited
+              visited[`${neighbor_supply.productId} - ${level}`] = true; // Mark neighbor as visited
             }
           }
         } catch (err) {
           console.log("no more past supplies");
         }
-        queue = temp;
       }
+      queue = temp;
     }
   } catch (err) {
     return { supplies, edges };

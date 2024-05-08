@@ -128,7 +128,7 @@ router.post("/login", async (req, res) => {
       dotenv.parsed.JWT_SECRET
     );
     return res
-      .cookie("Authorization", `Bearer ${token}`, { maxAge: 1800000 })
+      .cookie("Authorization", `Bearer ${token}`, { maxAge: 1.44e7 })
       .status(200)
       .json({
         message: "login successful",

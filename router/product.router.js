@@ -273,7 +273,8 @@ router.get("/my", token_verification, async (req, res) => {
           ...product,
           ...supply,
           delete_request:
-            delete_request.length > 0 && !delete_request[delete_request.length - 1].rejected,
+            delete_request.length > 0 &&
+            !delete_request[delete_request.length - 1].rejected,
         };
       })
     );
@@ -517,6 +518,7 @@ router.post("/no_recipe", token_verification, async (req, res) => {
     try {
       const find_existing_request = await ProductRequest.find({
         company: req.wallet_address,
+        progress: "pending",
       });
       if (find_existing_request.length > 2)
         return res.status(400).json({
@@ -548,6 +550,7 @@ router.post("/no_recipe", token_verification, async (req, res) => {
   try {
     const find_existing_request = await ProductRequest.find({
       company: req.wallet_address,
+      progress: "pending",
     });
     if (find_existing_request.length > 2)
       return res.status(400).json({
