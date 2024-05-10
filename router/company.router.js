@@ -128,12 +128,14 @@ router.get("/", async (req, res) => {
     const result = { companies: [], edges: [], list_of_companies: [] };
     let x = 0;
     const x_offset = 400;
+    let visited = new Set();
     for (let i = 0; i < head_companies.length; i++) {
       if (
         result.companies.filter(
           (company) => company.owner === head_companies[i].owner
         ).length > 0 ||
-        head_companies[i].owner === list_of_accounts[0]
+        head_companies[i].owner === list_of_accounts[0] ||
+        visited.has(head_companies[i].owner)
       )
         continue;
       const { companies, edges, list_of_companies } = await bfs(
@@ -143,6 +145,8 @@ router.get("/", async (req, res) => {
       );
       result.companies.push(...companies);
       result.edges.push(...edges);
+      for (let j = 0; j < companies.length; j++)
+        visited.add(companies[j].owner);
       list_of_companies.forEach((company) => {
         if (
           result.list_of_companies.length === 0 ||

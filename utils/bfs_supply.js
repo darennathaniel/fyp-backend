@@ -68,7 +68,11 @@ module.exports = async (start_node, x) => {
             const neighbor_supply = await Supply.findOne({
               supplyId: neighbor,
             });
-            if (!visited[`${neighbor_supply.productId} - ${level}`]) {
+            if (
+              !visited[
+                `${neighbor_supply.productId} - ${level} - ${current_supply_id}`
+              ]
+            ) {
               edges.push({
                 id: crypto.randomBytes(16).toString("hex"),
                 source: current_supply_id.toString(),
@@ -84,7 +88,9 @@ module.exports = async (start_node, x) => {
                 // }`,
               });
               temp.push([neighbor, level + 1]); // Enqueue the neighbor
-              visited[`${neighbor_supply.productId} - ${level}`] = true; // Mark neighbor as visited
+              visited[
+                `${neighbor_supply.productId} - ${level} - ${current_supply_id}`
+              ] = true; // Mark neighbor as visited
             }
           }
         } catch (err) {
